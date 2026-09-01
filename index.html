@@ -86,7 +86,8 @@
   function fmtOdds(price) {
     if (!price || price.odds == null) return "&mdash;";
     const line = price.line != null ? `${price.line} ` : "";
-    return `${line}<span class="odds-cell">${price.odds.toFixed(2)}</span>`;
+    const signed = price.odds > 0 ? `+${price.odds}` : `${price.odds}`;
+    return `${line}<span class="odds-cell">${signed}</span>`;
   }
 
   function fmtKickoff(unixSeconds) {
