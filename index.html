@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NCAAF FanDuel Odds</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #666;
+    --border: #e2e2e2;
+    --accent: #0b5fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --card: #171a21;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --border: #2a2d35;
+      --accent: #4d8dff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin: 0 0 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+  }
+  .status {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  table {
+    width: 100%;
+    max-width: 960px;
+    border-collapse: collapse;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+  th {
+    background: color-mix(in srgb, var(--card) 90%, var(--accent));
+    font-weight: 600;
+  }
+  tr:last-child td { border-bottom: none; }
+  .matchup { font-weight: 600; }
+  .kickoff { color: var(--muted); font-size: 0.8rem; }
+  .odds-cell { font-variant-numeric: tabular-nums; }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>NCAAF Odds &mdash; FanDuel</h1>
+  <div class="subtitle">Moneyline, spread &amp; total for upcoming games, refreshed every ~30 minutes.</div>
+  <div class="status" id="status">Loading…</div>
+  <div id="tableWrap"></div>
+
+<script>
+  const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
+  const REFRESH_MS = 5 * 60 * 1000;
+
+  function fmtOdds(price) {
+    if (!price || price.odds == null) return "&mdash;";
+    const line = price.line != null ? `${price.line} ` : "";
+    return `${line}<span class="odds-cell">${price.odds.toFixed(2)}</span>`;
+  }
+
+  function fmtKickoff(unixSeconds) {
+    if (!unixSeconds) return "";
+    const d = new Date(unixSeconds * 1000);
+    return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+
+  async function load() {
+    const statusEl = document.getElementById("status");
+    const wrap = document.getElementById("tableWrap");
+    try {
+      const res = await fetch(DATA_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const games = data.games || [];
+
+      statusEl.textContent = `${games.length} games · updated ${new Date(data.generated_at).toLocaleString()}`;
+
+      if (!games.length) {
+        wrap.innerHTML = '<div class="empty">No upcoming NCAAF games with FanDuel odds right now.</div>';
+        return;
+      }
+
+      const rows = games.map(g => `
+        <tr>
+          <td>
+            <div class="matchup">${g.away_team} @ ${g.home_team}</div>
+            <div class="kickoff">${fmtKickoff(g.start_time)}</div>
+          </td>
+          <td>${fmtOdds(g.moneyline?.away)}</td>
+          <td>${fmtOdds(g.moneyline?.home)}</td>
+          <td>${fmtOdds(g.spread?.away)}</td>
+          <td>${fmtOdds(g.spread?.home)}</td>
+          <td>${fmtOdds(g.total?.over)}</td>
+          <td>${fmtOdds(g.total?.under)}</td>
+        </tr>
+      `).join("");
+
+      wrap.innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Matchup</th>
+              <th>ML Away</th>
+              <th>ML Home</th>
+              <th>Spread Away</th>
+              <th>Spread Home</th>
+              <th>Total Over</th>
+              <th>Total Under</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    } catch (err) {
+      statusEl.textContent = `Failed to load odds: ${err.message}`;
+    }
+  }
+
+  load();
+  setInterval(load, REFRESH_MS);
+</script>
+</body>
+</html>
