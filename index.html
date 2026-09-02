@@ -91,6 +91,9 @@
   .team-logo { width: 18px; height: 18px; vertical-align: -3px; margin-right: 5px; object-fit: contain; border-radius: 3px; background: #fff; padding: 1px; }
   .kickoff { color: var(--muted); font-size: 0.8rem; }
   .odds-cell { font-variant-numeric: tabular-nums; }
+  .score-row { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .score-row + .score-row { margin-top: 2px; }
+  .status-line { margin-top: 3px; }
   .status-badge {
     display: inline-block;
     padding: 1px 7px;
@@ -175,14 +178,21 @@
     return d.toLocaleString(undefined, { weekday: "long", month: "long", day: "numeric" });
   }
 
+  // Mirrors the team-row stacking in the Matchup column (away line, then
+  // home line) so each score sits directly beside the team it belongs to -
+  // a bare "21-14" requires remembering an away-first convention, this doesn't.
   function fmtScore(score, homeAway) {
     if (!score) return '<span class="kickoff">&mdash;</span>';
     if (score.state === "pre") return `<span class="kickoff">${score.detail || "Scheduled"}</span>`;
     if (score.home_score == null || score.away_score == null) return '<span class="kickoff">&mdash;</span>';
-    if (score.completed) {
-      return `${score.away_score}-${score.home_score} <span class="status-badge final">Final</span>`;
-    }
-    return `${score.away_score}-${score.home_score} <span class="status-badge live">${score.detail || "Live"}</span>`;
+    const badge = score.completed
+      ? `<span class="status-badge final">Final</span>`
+      : `<span class="status-badge live">${score.detail || "Live"}</span>`;
+    return `
+      <div class="score-row">${score.away_score}</div>
+      <div class="score-row">${score.home_score}</div>
+      <div class="status-line">${badge}</div>
+    `;
   }
 
   async function load() {
