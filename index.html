@@ -14,6 +14,10 @@
     --muted: #666;
     --border: #e2e2e2;
     --accent: #0b5fff;
+    --live-bg: #fdeaea;
+    --live-text: #b3261e;
+    --final-bg: #e6f4ea;
+    --final-text: #1e7a34;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -23,6 +27,10 @@
       --muted: #9a9a9a;
       --border: #2a2d35;
       --accent: #4d8dff;
+      --live-bg: #3d1414;
+      --live-text: #f28b82;
+      --final-bg: #133d20;
+      --final-text: #6fd08c;
     }
   }
   * { box-sizing: border-box; }
@@ -83,7 +91,38 @@
   .team-logo { width: 18px; height: 18px; vertical-align: -3px; margin-right: 5px; object-fit: contain; border-radius: 3px; background: #fff; padding: 1px; }
   .kickoff { color: var(--muted); font-size: 0.8rem; }
   .odds-cell { font-variant-numeric: tabular-nums; }
-  .odds-cell { font-variant-numeric: tabular-nums; }
+  .status-badge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin-left: 6px;
+    vertical-align: 1px;
+  }
+  .status-badge.live {
+    background: var(--live-bg);
+    color: var(--live-text);
+  }
+  .status-badge.live::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--live-text);
+    margin-right: 4px;
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .status-badge.final {
+    background: var(--final-bg);
+    color: var(--final-text);
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
   .empty { padding: 40px; text-align: center; color: var(--muted); }
   @media (max-width: 480px) {
     body { padding: 16px 12px 48px; }
@@ -140,8 +179,10 @@
     if (!score) return '<span class="kickoff">&mdash;</span>';
     if (score.state === "pre") return `<span class="kickoff">${score.detail || "Scheduled"}</span>`;
     if (score.home_score == null || score.away_score == null) return '<span class="kickoff">&mdash;</span>';
-    const label = score.completed ? "Final" : (score.detail || "Live");
-    return `${score.away_score}-${score.home_score} <span class="kickoff">${label}</span>`;
+    if (score.completed) {
+      return `${score.away_score}-${score.home_score} <span class="status-badge final">Final</span>`;
+    }
+    return `${score.away_score}-${score.home_score} <span class="status-badge live">${score.detail || "Live"}</span>`;
   }
 
   async function load() {
