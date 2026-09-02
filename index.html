@@ -88,14 +88,11 @@
   const SCORES_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/scores.json";
   const REFRESH_MS = 2 * 60 * 1000;
 
-  function fmtSigned(n) {
-    return n > 0 ? `+${n}` : `${n}`;
-  }
-
-  function fmtOdds(price) {
-    if (!price || price.odds == null) return "&mdash;";
-    const line = price.line != null ? `${fmtSigned(price.line)} ` : "";
-    return `${line}<span class="odds-cell">${fmtSigned(price.odds)}</span>`;
+  function favoriteSpread(g) {
+    const h = g.spread?.home, a = g.spread?.away;
+    if (!h || !a || h.line == null || a.line == null) return "";
+    if (h.line === 0) return "PK";
+    return h.line < 0 ? `${h.line}` : `${a.line}`;
   }
 
   function fmtKickoff(unixSeconds) {
@@ -133,25 +130,24 @@
         return;
       }
 
-      const rows = games.map(g => `
+      const rows = games.map(g => {
+        const fav = favoriteSpread(g);
+        return `
         <tr>
           <td>
-            <div class="matchup">${g.away_team} @ ${g.home_team}</div>
+            <div class="matchup">${g.away_team} @ ${g.home_team}${fav ? ` (${fav})` : ""}</div>
             <div class="kickoff">${fmtKickoff(g.start_time)}</div>
           </td>
-          <td>${fmtOdds(g.spread?.away)}</td>
-          <td>${fmtOdds(g.spread?.home)}</td>
           <td>${fmtScore(scores[g.event_id])}</td>
         </tr>
-      `).join("");
+      `;
+      }).join("");
 
       wrap.innerHTML = `
         <table>
           <thead>
             <tr>
               <th>Matchup</th>
-              <th>Spread Away</th>
-              <th>Spread Home</th>
               <th>Score</th>
             </tr>
           </thead>
