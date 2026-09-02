@@ -72,6 +72,7 @@
   .pill.loss { background: var(--loss-bg); color: var(--loss-text); }
   .pill.push { background: color-mix(in srgb, var(--card) 85%, var(--accent)); color: var(--accent); }
   .empty { padding: 40px; text-align: center; color: var(--muted); }
+  .hidden-pick { color: var(--muted); font-style: italic; }
   .nav-toggle {
     display: none;
     width: 34px;
@@ -200,6 +201,13 @@
     return `<span class="pill ${r}">${label}${scoreText}</span>`;
   }
 
+  // Picks stay hidden from the shared view until their game has actually
+  // kicked off - otherwise someone could see a family member's pick and
+  // copy (or fade) it before making their own.
+  function isHiddenPick(pick, now) {
+    return pick.game_start_time != null && pick.game_start_time > now;
+  }
+
   async function load() {
     const statusEl = document.getElementById("status");
     const wrap = document.getElementById("tableWrap");
@@ -234,15 +242,24 @@
         return;
       }
 
-      const rows = picks.map(p => `
+      const now = Math.floor(Date.now() / 1000);
+      const rows = picks.map(p => {
+        const hidden = isHiddenPick(p, now);
+        const pickCell = hidden
+          ? '<span class="hidden-pick">Hidden until kickoff</span>'
+          : `${logoImg(logoById.get(p.team_id))}${p.team_name}`;
+        const opponentCell = hidden ? "&mdash;" : `${logoImg(logoById.get(p.opponent_team_id))}${p.opponent_name}`;
+        const spreadCell = hidden ? "&mdash;" : fmtSpread(p.spread_at_pick);
+        return `
         <tr>
           <td>${p.display_name}</td>
-          <td>${logoImg(logoById.get(p.team_id))}${p.team_name}</td>
-          <td>${logoImg(logoById.get(p.opponent_team_id))}${p.opponent_name}</td>
-          <td>${fmtSpread(p.spread_at_pick)}</td>
+          <td>${pickCell}</td>
+          <td>${opponentCell}</td>
+          <td>${spreadCell}</td>
           <td>${resultPill(p)}</td>
         </tr>
-      `).join("");
+      `;
+      }).join("");
 
       wrap.innerHTML = `
         <div class="table-scroll">
