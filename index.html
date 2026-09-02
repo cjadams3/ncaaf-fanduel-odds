@@ -75,7 +75,7 @@
 </head>
 <body>
   <h1>NCAAF Odds &mdash; FanDuel</h1>
-  <div class="subtitle">Moneyline, spread &amp; total for upcoming games, refreshed every ~30 minutes.</div>
+  <div class="subtitle">Point spread for upcoming games, refreshed every ~30 minutes.</div>
   <div class="status" id="status">Loading…</div>
   <div id="tableWrap"></div>
 
@@ -118,12 +118,8 @@
             <div class="matchup">${g.away_team} @ ${g.home_team}</div>
             <div class="kickoff">${fmtKickoff(g.start_time)}</div>
           </td>
-          <td>${fmtOdds(g.moneyline?.away)}</td>
-          <td>${fmtOdds(g.moneyline?.home)}</td>
           <td>${fmtOdds(g.spread?.away)}</td>
           <td>${fmtOdds(g.spread?.home)}</td>
-          <td>${fmtOdds(g.total?.over)}</td>
-          <td>${fmtOdds(g.total?.under)}</td>
         </tr>
       `).join("");
 
@@ -132,12 +128,8 @@
           <thead>
             <tr>
               <th>Matchup</th>
-              <th>ML Away</th>
-              <th>ML Home</th>
               <th>Spread Away</th>
               <th>Spread Home</th>
-              <th>Total Over</th>
-              <th>Total Under</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
