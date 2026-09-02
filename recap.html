@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Weekly Recap</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #666;
+    --border: #e2e2e2;
+    --accent: #0b5fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --card: #171a21;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --border: #2a2d35;
+      --accent: #4d8dff;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0 auto;
+    max-width: 640px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 12px; }
+  nav { margin-bottom: 20px; font-size: 0.85rem; }
+  nav a { color: var(--accent); text-decoration: none; margin-right: 12px; }
+  nav a:hover { text-decoration: underline; }
+  .status { font-size: 0.85rem; color: var(--muted); margin-bottom: 16px; }
+  .article {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 22px;
+  }
+  .article h2 { font-size: 1.2rem; margin: 0 0 12px; }
+  .article h3 { font-size: 1rem; margin: 20px 0 8px; }
+  .article p { line-height: 1.55; margin: 0 0 12px; }
+  .article ul { margin: 0 0 12px; padding-left: 20px; line-height: 1.5; }
+  .article li { margin-bottom: 6px; }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+  @media (max-width: 480px) {
+    body { padding: 16px 12px 48px; }
+    .article { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+  <h1>Weekly Recap</h1>
+  <div class="subtitle">Written by Claude, straight from the week's picks and box scores.</div>
+  <nav>
+    <a href="index.html">Odds board</a>
+    <a href="pick.html">Make a pick</a>
+    <a href="picks.html">This week's picks</a>
+    <a href="season.html">Season standings</a>
+  </nav>
+  <div class="status" id="status">Loading…</div>
+  <div id="wrap"></div>
+
+<script>
+  const RECAP_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/recap/latest.json";
+
+  function formatWeekLabel(weekKey) {
+    const m = /^(\d{4})-wk(\d{2})$/.exec(weekKey || "");
+    if (!m) return weekKey || "";
+    return `Week ${Number(m[2])}, ${m[1]}`;
+  }
+
+  async function load() {
+    const statusEl = document.getElementById("status");
+    const wrap = document.getElementById("wrap");
+    try {
+      const res = await fetch(RECAP_URL, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (!data.html) {
+        statusEl.textContent = "";
+        wrap.innerHTML = '<div class="empty">No recap yet - check back after this week\'s games wrap up.</div>';
+        return;
+      }
+
+      statusEl.textContent = `${data.week_label || formatWeekLabel(data.week)} · published ${new Date(data.generated_at).toLocaleString()}`;
+      wrap.innerHTML = `<div class="article">${data.html}</div>`;
+    } catch (err) {
+      statusEl.textContent = `Failed to load recap: ${err.message}`;
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>
