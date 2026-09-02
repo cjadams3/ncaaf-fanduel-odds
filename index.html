@@ -88,11 +88,15 @@
   const SCORES_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/scores.json";
   const REFRESH_MS = 2 * 60 * 1000;
 
-  function favoriteSpread(g) {
+  // Returns which side (home/away) is favored and by how much, so the
+  // spread can be displayed next to the correct team - not just appended
+  // to the end of the matchup string, which would misattribute it whenever
+  // the away team (not home) is favored.
+  function favoriteSide(g) {
     const h = g.spread?.home, a = g.spread?.away;
-    if (!h || !a || h.line == null || a.line == null) return "";
-    if (h.line === 0) return "PK";
-    return h.line < 0 ? `${h.line}` : `${a.line}`;
+    if (!h || !a || h.line == null || a.line == null) return null;
+    if (h.line === 0) return { side: "pk", line: "PK" };
+    return h.line < 0 ? { side: "home", line: `${h.line}` } : { side: "away", line: `${a.line}` };
   }
 
   function fmtKickoff(unixSeconds) {
@@ -131,11 +135,14 @@
       }
 
       const rows = games.map(g => {
-        const fav = favoriteSpread(g);
+        const fav = favoriteSide(g);
+        const awayLabel = g.away_team + (fav?.side === "away" ? ` (${fav.line})` : "");
+        const homeLabel = g.home_team + (fav?.side === "home" ? ` (${fav.line})` : "");
+        const pkLabel = fav?.side === "pk" ? " (PK)" : "";
         return `
         <tr>
           <td>
-            <div class="matchup">${g.away_team} @ ${g.home_team}${fav ? ` (${fav})` : ""}</div>
+            <div class="matchup">${awayLabel} @ ${homeLabel}${pkLabel}</div>
             <div class="kickoff">${fmtKickoff(g.start_time)}</div>
           </td>
           <td>${fmtScore(scores[g.event_id])}</td>
