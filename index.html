@@ -83,11 +83,14 @@
   const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
   const REFRESH_MS = 5 * 60 * 1000;
 
+  function fmtSigned(n) {
+    return n > 0 ? `+${n}` : `${n}`;
+  }
+
   function fmtOdds(price) {
     if (!price || price.odds == null) return "&mdash;";
-    const line = price.line != null ? `${price.line} ` : "";
-    const signed = price.odds > 0 ? `+${price.odds}` : `${price.odds}`;
-    return `${line}<span class="odds-cell">${signed}</span>`;
+    const line = price.line != null ? `${fmtSigned(price.line)} ` : "";
+    return `${line}<span class="odds-cell">${fmtSigned(price.odds)}</span>`;
   }
 
   function fmtKickoff(unixSeconds) {
