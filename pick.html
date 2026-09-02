@@ -96,6 +96,42 @@
   .existing-pick.visible { display: block; }
   .existing-pick.info { background: color-mix(in srgb, var(--card) 85%, var(--accent)); color: var(--text); }
   .existing-pick.locked { background: var(--err-bg); color: var(--err-text); }
+  .nav-toggle {
+    display: none;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .nav-toggle span { display: block; width: 16px; height: 2px; background: var(--text); border-radius: 1px; }
+  @media (max-width: 600px) {
+    nav { display: flex; justify-content: flex-end; position: relative; }
+    .nav-toggle { display: flex; }
+    .nav-links {
+      display: none;
+      position: absolute;
+      top: 42px;
+      right: 0;
+      z-index: 20;
+      flex-direction: column;
+      gap: 2px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 0;
+      min-width: 190px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+    }
+    .nav-links.open { display: flex; }
+    .nav-links a { margin-right: 0; padding: 10px 16px; }
+  }
   @media (max-width: 480px) {
     body { padding: 16px 12px 48px; }
     .card { padding: 16px; }
@@ -106,7 +142,15 @@
 <div class="wrap">
   <h1>Make Your Pick</h1>
   <div class="subtitle">Pick a team to win this week &mdash; opponent and current spread fill in automatically.</div>
-  <nav><a href="index.html">Odds board</a><a href="picks.html">This week's picks</a><a href="season.html">Season standings</a><a href="recap.html">Weekly recap</a></nav>
+  <nav>
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    <div class="nav-links" id="navLinks">
+      <a href="index.html">Odds board</a>
+      <a href="picks.html">This week's picks</a>
+      <a href="season.html">Season standings</a>
+      <a href="recap.html">Weekly recap</a>
+    </div>
+  </nav>
 
   <div class="card">
     <label for="memberSelect">Your name</label>
@@ -129,6 +173,21 @@
 </div>
 
 <script>
+  const navToggle = document.getElementById("navToggle");
+  const navLinks = document.getElementById("navLinks");
+  if (navToggle) {
+    navToggle.addEventListener("click", () => {
+      const isOpen = navLinks.classList.toggle("open");
+      navToggle.setAttribute("aria-expanded", String(isOpen));
+    });
+    document.addEventListener("click", (e) => {
+      if (!navLinks.classList.contains("open")) return;
+      if (navLinks.contains(e.target) || navToggle.contains(e.target)) return;
+      navLinks.classList.remove("open");
+      navToggle.setAttribute("aria-expanded", "false");
+    });
+  }
+
   const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
   const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
   const TEAMS_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/teams.json";

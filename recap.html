@@ -53,6 +53,42 @@
   .article ul { margin: 0 0 12px; padding-left: 20px; line-height: 1.5; }
   .article li { margin-bottom: 6px; }
   .empty { padding: 40px; text-align: center; color: var(--muted); }
+  .nav-toggle {
+    display: none;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .nav-toggle span { display: block; width: 16px; height: 2px; background: var(--text); border-radius: 1px; }
+  @media (max-width: 600px) {
+    nav { display: flex; justify-content: flex-end; position: relative; }
+    .nav-toggle { display: flex; }
+    .nav-links {
+      display: none;
+      position: absolute;
+      top: 42px;
+      right: 0;
+      z-index: 20;
+      flex-direction: column;
+      gap: 2px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 0;
+      min-width: 190px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+    }
+    .nav-links.open { display: flex; }
+    .nav-links a { margin-right: 0; padding: 10px 16px; }
+  }
   @media (max-width: 480px) {
     body { padding: 16px 12px 48px; }
     .article { padding: 16px; }
@@ -63,15 +99,33 @@
   <h1>Weekly Recap</h1>
   <div class="subtitle">Written by Claude, straight from the week's picks and box scores.</div>
   <nav>
-    <a href="index.html">Odds board</a>
-    <a href="pick.html">Make a pick</a>
-    <a href="picks.html">This week's picks</a>
-    <a href="season.html">Season standings</a>
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+    <div class="nav-links" id="navLinks">
+      <a href="index.html">Odds board</a>
+      <a href="pick.html">Make a pick</a>
+      <a href="picks.html">This week's picks</a>
+      <a href="season.html">Season standings</a>
+    </div>
   </nav>
   <div class="status" id="status">Loading…</div>
   <div id="wrap"></div>
 
 <script>
+  const navToggle = document.getElementById("navToggle");
+  const navLinks = document.getElementById("navLinks");
+  if (navToggle) {
+    navToggle.addEventListener("click", () => {
+      const isOpen = navLinks.classList.toggle("open");
+      navToggle.setAttribute("aria-expanded", String(isOpen));
+    });
+    document.addEventListener("click", (e) => {
+      if (!navLinks.classList.contains("open")) return;
+      if (navLinks.contains(e.target) || navToggle.contains(e.target)) return;
+      navLinks.classList.remove("open");
+      navToggle.setAttribute("aria-expanded", "false");
+    });
+  }
+
   const RECAP_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/recap/latest.json";
 
   function formatWeekLabel(weekKey) {
