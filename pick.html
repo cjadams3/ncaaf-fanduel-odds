@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Make Your Pick</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #666;
+    --border: #e2e2e2;
+    --accent: #0b5fff;
+    --ok-bg: #e6f4ea;
+    --ok-text: #1e7a34;
+    --err-bg: #fdeaea;
+    --err-text: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --card: #171a21;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --border: #2a2d35;
+      --accent: #4d8dff;
+      --ok-bg: #133d20;
+      --ok-text: #6fd08c;
+      --err-bg: #3d1414;
+      --err-text: #f28b82;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 20px; }
+  nav { margin-bottom: 20px; font-size: 0.85rem; }
+  nav a { color: var(--accent); text-decoration: none; margin-right: 12px; }
+  nav a:hover { text-decoration: underline; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  label { display: block; font-size: 0.85rem; font-weight: 600; margin: 16px 0 6px; }
+  label:first-of-type { margin-top: 0; }
+  select {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  .game-info {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--card) 90%, var(--accent));
+    font-size: 0.9rem;
+    display: none;
+  }
+  .game-info.visible { display: block; }
+  .game-info .row { display: flex; justify-content: space-between; margin: 4px 0; }
+  .game-info .label { color: var(--muted); }
+  button {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .status { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.9rem; display: none; }
+  .status.ok { display: block; background: var(--ok-bg); color: var(--ok-text); }
+  .status.err { display: block; background: var(--err-bg); color: var(--err-text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Make Your Pick</h1>
+  <div class="subtitle">Pick a team to win this week &mdash; opponent and current spread fill in automatically.</div>
+  <nav><a href="index.html">Odds board</a><a href="picks.html">This week's picks</a></nav>
+
+  <div class="card">
+    <label for="memberSelect">Your name</label>
+    <select id="memberSelect"><option value="">Loading…</option></select>
+
+    <label for="teamSelect">Team</label>
+    <select id="teamSelect"><option value="">Loading…</option></select>
+
+    <div class="game-info" id="gameInfo">
+      <div class="row"><span class="label">Opponent</span><span id="giOpponent"></span></div>
+      <div class="row"><span class="label">Kickoff</span><span id="giKickoff"></span></div>
+      <div class="row"><span class="label">Current spread</span><span id="giSpread"></span></div>
+    </div>
+
+    <button id="submitBtn" disabled>Submit Pick</button>
+    <div class="status" id="statusBox"></div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
+  const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
+
+  let games = [];
+  let teamToGame = new Map();
+
+  function fmtKickoff(unixSeconds) {
+    const d = new Date(unixSeconds * 1000);
+    return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+
+  function fmtSpread(price) {
+    if (!price || price.odds == null) return "n/a";
+    const line = price.line != null ? (price.line > 0 ? `+${price.line} ` : `${price.line} `) : "";
+    const odds = price.odds > 0 ? `+${price.odds}` : `${price.odds}`;
+    return `${line}${odds}`;
+  }
+
+  async function loadMembers() {
+    const memberSelect = document.getElementById("memberSelect");
+    try {
+      const res = await fetch(`${API_BASE}/members`);
+      const data = await res.json();
+      memberSelect.innerHTML = '<option value="">Select your name…</option>' +
+        data.members.map(m => `<option value="${m.member_id}">${m.name}</option>`).join("");
+    } catch (err) {
+      memberSelect.innerHTML = '<option value="">Failed to load names</option>';
+    }
+  }
+
+  async function loadTeams() {
+    const teamSelect = document.getElementById("teamSelect");
+    try {
+      const res = await fetch(DATA_URL, { cache: "no-store" });
+      const data = await res.json();
+      games = data.games || [];
+
+      for (const g of games) {
+        if (g.home_team_id) teamToGame.set(g.home_team_id, { game: g, side: "home" });
+        if (g.away_team_id) teamToGame.set(g.away_team_id, { game: g, side: "away" });
+      }
+
+      const options = [];
+      for (const g of games) {
+        if (g.home_team_id) options.push({ id: g.home_team_id, name: g.home_team });
+        if (g.away_team_id) options.push({ id: g.away_team_id, name: g.away_team });
+      }
+      options.sort((a, b) => a.name.localeCompare(b.name));
+
+      teamSelect.innerHTML = '<option value="">Select a team…</option>' +
+        options.map(o => `<option value="${o.id}">${o.name}</option>`).join("");
+    } catch (err) {
+      teamSelect.innerHTML = '<option value="">Failed to load teams</option>';
+    }
+  }
+
+  function onTeamChange() {
+    const teamId = document.getElementById("teamSelect").value;
+    const gameInfo = document.getElementById("gameInfo");
+    const submitBtn = document.getElementById("submitBtn");
+
+    const entry = teamToGame.get(teamId);
+    if (!entry) {
+      gameInfo.classList.remove("visible");
+      submitBtn.disabled = true;
+      return;
+    }
+
+    const { game, side } = entry;
+    const opponent = side === "home" ? game.away_team : game.home_team;
+    const spread = side === "home" ? game.spread?.home : game.spread?.away;
+
+    document.getElementById("giOpponent").textContent = opponent;
+    document.getElementById("giKickoff").textContent = fmtKickoff(game.start_time);
+    document.getElementById("giSpread").textContent = fmtSpread(spread);
+    gameInfo.classList.add("visible");
+
+    updateSubmitState();
+  }
+
+  function updateSubmitState() {
+    const memberId = document.getElementById("memberSelect").value;
+    const teamId = document.getElementById("teamSelect").value;
+    document.getElementById("submitBtn").disabled = !(memberId && teamId);
+  }
+
+  async function submitPick() {
+    const memberId = document.getElementById("memberSelect").value;
+    const teamId = document.getElementById("teamSelect").value;
+    const entry = teamToGame.get(teamId);
+    const statusBox = document.getElementById("statusBox");
+    const submitBtn = document.getElementById("submitBtn");
+
+    if (!memberId || !teamId || !entry) return;
+
+    submitBtn.disabled = true;
+    statusBox.className = "status";
+    statusBox.textContent = "";
+
+    try {
+      const res = await fetch(`${API_BASE}/picks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ member_id: memberId, event_id: entry.game.event_id, team_id: teamId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+      statusBox.className = "status ok";
+      statusBox.textContent = `Pick saved: ${data.pick.team_name} vs ${data.pick.opponent_name}.`;
+    } catch (err) {
+      statusBox.className = "status err";
+      statusBox.textContent = `Failed to save pick: ${err.message}`;
+    } finally {
+      submitBtn.disabled = false;
+    }
+  }
+
+  document.getElementById("memberSelect").addEventListener("change", updateSubmitState);
+  document.getElementById("teamSelect").addEventListener("change", onTeamChange);
+  document.getElementById("submitBtn").addEventListener("click", submitPick);
+
+  loadMembers();
+  loadTeams();
+</script>
+</body>
+</html>

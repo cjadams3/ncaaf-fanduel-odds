@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>This Week's Picks</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #666;
+    --border: #e2e2e2;
+    --accent: #0b5fff;
+    --win-bg: #e6f4ea;
+    --win-text: #1e7a34;
+    --loss-bg: #fdeaea;
+    --loss-text: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --card: #171a21;
+      --text: #f2f2f2;
+      --muted: #9a9a9a;
+      --border: #2a2d35;
+      --accent: #4d8dff;
+      --win-bg: #133d20;
+      --win-text: #6fd08c;
+      --loss-bg: #3d1414;
+      --loss-text: #f28b82;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 12px; }
+  nav { margin-bottom: 20px; font-size: 0.85rem; }
+  nav a { color: var(--accent); text-decoration: none; margin-right: 12px; }
+  nav a:hover { text-decoration: underline; }
+  .status { font-size: 0.85rem; color: var(--muted); margin-bottom: 16px; }
+  table {
+    width: 100%;
+    max-width: 760px;
+    border-collapse: collapse;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { background: color-mix(in srgb, var(--card) 90%, var(--accent)); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+  .pill.pending { background: color-mix(in srgb, var(--card) 85%, var(--muted)); color: var(--muted); }
+  .pill.win { background: var(--win-bg); color: var(--win-text); }
+  .pill.loss { background: var(--loss-bg); color: var(--loss-text); }
+  .pill.push { background: color-mix(in srgb, var(--card) 85%, var(--accent)); color: var(--accent); }
+  .empty { padding: 40px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+  <h1>This Week's Picks</h1>
+  <div class="subtitle" id="weekLabel"></div>
+  <nav><a href="index.html">Odds board</a><a href="pick.html">Make a pick</a></nav>
+  <div class="status" id="status">Loading…</div>
+  <div id="tableWrap"></div>
+
+<script>
+  const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
+
+  function currentIsoWeek() {
+    const d = new Date();
+    const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = utc.getUTCDay() || 7;
+    utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+    return `${utc.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+  }
+
+  function fmtSpread(price) {
+    if (!price || price.odds == null) return "&mdash;";
+    const line = price.line != null ? (price.line > 0 ? `+${price.line} ` : `${price.line} `) : "";
+    const odds = price.odds > 0 ? `+${price.odds}` : `${price.odds}`;
+    return `${line}${odds}`;
+  }
+
+  function resultPill(pick) {
+    const r = pick.result || "pending";
+    const label = r === "pending" ? "Pending" : r.charAt(0).toUpperCase() + r.slice(1);
+    let scoreText = "";
+    if (r !== "pending" && pick.final_score_for != null) {
+      scoreText = ` (${pick.final_score_for}-${pick.final_score_against})`;
+    }
+    return `<span class="pill ${r}">${label}${scoreText}</span>`;
+  }
+
+  async function load() {
+    const week = new URLSearchParams(location.search).get("week") || currentIsoWeek();
+    document.getElementById("weekLabel").textContent = `Week ${week}`;
+    const statusEl = document.getElementById("status");
+    const wrap = document.getElementById("tableWrap");
+
+    try {
+      const [picksRes, membersRes] = await Promise.all([
+        fetch(`${API_BASE}/picks?week=${encodeURIComponent(week)}`, { cache: "no-store" }),
+        fetch(`${API_BASE}/members`, { cache: "no-store" })
+      ]);
+      if (!picksRes.ok) throw new Error(`HTTP ${picksRes.status}`);
+      const data = await picksRes.json();
+      const membersData = membersRes.ok ? await membersRes.json() : { members: [] };
+      const nameById = new Map(membersData.members.map(m => [m.member_id, m.name]));
+
+      const picks = (data.picks || [])
+        .map(p => ({ ...p, display_name: nameById.get(p.member_id) || p.member_id }))
+        .sort((a, b) => a.display_name.localeCompare(b.display_name));
+
+      statusEl.textContent = `${picks.length} pick${picks.length === 1 ? "" : "s"} so far`;
+
+      if (!picks.length) {
+        wrap.innerHTML = '<div class="empty">No picks yet for this week.</div>';
+        return;
+      }
+
+      const rows = picks.map(p => `
+        <tr>
+          <td>${p.display_name}</td>
+          <td>${p.team_name}</td>
+          <td>${p.opponent_name}</td>
+          <td>${fmtSpread(p.spread_at_pick)}</td>
+          <td>${resultPill(p)}</td>
+        </tr>
+      `).join("");
+
+      wrap.innerHTML = `
+        <table>
+          <thead>
+            <tr><th>Member</th><th>Pick</th><th>Opponent</th><th>Spread at pick</th><th>Result</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    } catch (err) {
+      statusEl.textContent = `Failed to load picks: ${err.message}`;
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>
