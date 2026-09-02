@@ -75,15 +75,20 @@
 
 <script>
   const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
+  const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
 
-  function currentIsoWeek() {
-    const d = new Date();
-    const utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = utc.getUTCDay() || 7;
-    utc.setUTCDate(utc.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
-    return `${utc.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+  // Games are already sorted by kickoff time, so the earliest upcoming game's
+  // week is "this week" - avoids duplicating ESPN's week-boundary logic here.
+  async function currentWeek() {
+    const res = await fetch(DATA_URL, { cache: "no-store" });
+    const data = await res.json();
+    return data.games?.[0]?.week || null;
+  }
+
+  function formatWeekLabel(weekKey) {
+    const m = /^(\d{4})-wk(\d{2})$/.exec(weekKey || "");
+    if (!m) return weekKey || "unknown";
+    return `Week ${Number(m[2])}, ${m[1]}`;
   }
 
   function fmtSpread(price) {
@@ -104,12 +109,18 @@
   }
 
   async function load() {
-    const week = new URLSearchParams(location.search).get("week") || currentIsoWeek();
-    document.getElementById("weekLabel").textContent = `Week ${week}`;
     const statusEl = document.getElementById("status");
     const wrap = document.getElementById("tableWrap");
 
     try {
+      const week = new URLSearchParams(location.search).get("week") || await currentWeek();
+      if (!week) {
+        document.getElementById("weekLabel").textContent = "";
+        statusEl.textContent = "No upcoming games right now.";
+        return;
+      }
+      document.getElementById("weekLabel").textContent = formatWeekLabel(week);
+
       const [picksRes, membersRes] = await Promise.all([
         fetch(`${API_BASE}/picks?week=${encodeURIComponent(week)}`, { cache: "no-store" }),
         fetch(`${API_BASE}/members`, { cache: "no-store" })
