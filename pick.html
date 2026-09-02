@@ -159,10 +159,8 @@
   }
 
   function fmtSpread(price) {
-    if (!price || price.odds == null) return "n/a";
-    const line = price.line != null ? (price.line > 0 ? `+${price.line} ` : `${price.line} `) : "";
-    const odds = price.odds > 0 ? `+${price.odds}` : `${price.odds}`;
-    return `${line}${odds}`;
+    if (!price || price.line == null) return "n/a";
+    return price.line > 0 ? `+${price.line}` : `${price.line}`;
   }
 
   async function loadMembers() {
