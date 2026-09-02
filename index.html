@@ -34,8 +34,10 @@
     }
   }
   * { box-sizing: border-box; }
+  html { background: var(--bg); }
   body {
-    margin: 0;
+    margin: 0 auto;
+    max-width: 640px;
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -184,13 +186,22 @@
     return d.toLocaleString(undefined, { weekday: "long", month: "long", day: "numeric" });
   }
 
+  // Kickoff time in the viewer's own local time zone - shown under the
+  // matchup itself now, rather than the ESPN pre-game text (fixed to
+  // Eastern) that used to live in the Score column.
+  function fmtKickoffTime(unixSeconds) {
+    if (!unixSeconds) return "";
+    const d = new Date(unixSeconds * 1000);
+    return d.toLocaleString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
   // Mirrors the team-row stacking in the Matchup column (away line, then
   // home line) so each score sits directly beside the team it belongs to -
   // a bare "21-14" requires remembering an away-first convention, this doesn't.
+  // Pre-game games show nothing here now - kickoff time moved under the matchup.
   function fmtScore(score, homeAway) {
-    if (!score) return '<span class="kickoff">&mdash;</span>';
-    if (score.state === "pre") return `<span class="kickoff">${score.detail || "Scheduled"}</span>`;
-    if (score.home_score == null || score.away_score == null) return '<span class="kickoff">&mdash;</span>';
+    if (!score || score.state === "pre") return "";
+    if (score.home_score == null || score.away_score == null) return "";
     const badge = score.completed
       ? `<span class="status-badge final">Final</span>`
       : `<span class="status-badge live">${score.detail || "Live"}</span>`;
@@ -245,6 +256,7 @@
           <td>
             <div class="team-row">${awayLabel}</div>
             <div class="team-row">@ ${homeLabel}${pkLabel}</div>
+            <div class="kickoff">${fmtKickoffTime(g.start_time)}</div>
           </td>
           <td>${fmtScore(scores[g.event_id])}</td>
         </tr>
