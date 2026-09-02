@@ -85,7 +85,8 @@
 
 <script>
   const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
-  const REFRESH_MS = 5 * 60 * 1000;
+  const SCORES_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/scores.json";
+  const REFRESH_MS = 2 * 60 * 1000;
 
   function fmtSigned(n) {
     return n > 0 ? `+${n}` : `${n}`;
@@ -103,14 +104,27 @@
     return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   }
 
+  function fmtScore(score, homeAway) {
+    if (!score) return '<span class="kickoff">&mdash;</span>';
+    if (score.state === "pre") return `<span class="kickoff">${score.detail || "Scheduled"}</span>`;
+    if (score.home_score == null || score.away_score == null) return '<span class="kickoff">&mdash;</span>';
+    const label = score.completed ? "Final" : (score.detail || "Live");
+    return `${score.away_score}-${score.home_score} <span class="kickoff">${label}</span>`;
+  }
+
   async function load() {
     const statusEl = document.getElementById("status");
     const wrap = document.getElementById("tableWrap");
     try {
-      const res = await fetch(DATA_URL, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const [oddsRes, scoresRes] = await Promise.all([
+        fetch(DATA_URL, { cache: "no-store" }),
+        fetch(SCORES_URL, { cache: "no-store" }).catch(() => null)
+      ]);
+      if (!oddsRes.ok) throw new Error(`HTTP ${oddsRes.status}`);
+      const data = await oddsRes.json();
       const games = data.games || [];
+      const scoresData = scoresRes && scoresRes.ok ? await scoresRes.json() : { scores: {} };
+      const scores = scoresData.scores || {};
 
       statusEl.textContent = `${games.length} games · updated ${new Date(data.generated_at).toLocaleString()}`;
 
@@ -127,6 +141,7 @@
           </td>
           <td>${fmtOdds(g.spread?.away)}</td>
           <td>${fmtOdds(g.spread?.home)}</td>
+          <td>${fmtScore(scores[g.event_id])}</td>
         </tr>
       `).join("");
 
@@ -137,6 +152,7 @@
               <th>Matchup</th>
               <th>Spread Away</th>
               <th>Spread Home</th>
+              <th>Score</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
