@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>This Week's Picks</title>
+<title>Season Standings</title>
 <style>
   :root {
     color-scheme: light dark;
@@ -41,6 +41,7 @@
     padding: 24px 16px 60px;
   }
   h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 28px 0 10px; }
   .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 12px; }
   nav { margin-bottom: 20px; font-size: 0.85rem; }
   nav a { color: var(--accent); text-decoration: none; margin-right: 12px; }
@@ -54,10 +55,13 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     overflow: hidden;
+    margin-bottom: 8px;
   }
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
   th { background: color-mix(in srgb, var(--card) 90%, var(--accent)); font-weight: 600; }
   tr:last-child td { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .week-heading { margin: 24px 0 8px; font-size: 0.9rem; font-weight: 600; color: var(--muted); }
   .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
   .pill.pending { background: color-mix(in srgb, var(--card) 85%, var(--muted)); color: var(--muted); }
   .pill.win { background: var(--win-bg); color: var(--win-text); }
@@ -67,29 +71,15 @@
 </style>
 </head>
 <body>
-  <h1>This Week's Picks</h1>
-  <div class="subtitle" id="weekLabel"></div>
-  <nav><a href="index.html">Odds board</a><a href="pick.html">Make a pick</a><a href="season.html">Season standings</a></nav>
+  <h1>Season Standings</h1>
+  <div class="subtitle">Every pick, every week, graded.</div>
+  <nav><a href="index.html">Odds board</a><a href="pick.html">Make a pick</a><a href="picks.html">This week's picks</a></nav>
   <div class="status" id="status">Loading…</div>
-  <div id="tableWrap"></div>
+  <div id="leaderboardWrap"></div>
+  <div id="historyWrap"></div>
 
 <script>
   const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
-  const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
-
-  // Games are already sorted by kickoff time, so the earliest upcoming game's
-  // week is "this week" - avoids duplicating ESPN's week-boundary logic here.
-  async function currentWeek() {
-    const res = await fetch(DATA_URL, { cache: "no-store" });
-    const data = await res.json();
-    return data.games?.[0]?.week || null;
-  }
-
-  function formatWeekLabel(weekKey) {
-    const m = /^(\d{4})-wk(\d{2})$/.exec(weekKey || "");
-    if (!m) return weekKey || "unknown";
-    return `Week ${Number(m[2])}, ${m[1]}`;
-  }
 
   function fmtSpread(price) {
     if (!price || price.odds == null) return "&mdash;";
@@ -108,21 +98,35 @@
     return `<span class="pill ${r}">${label}${scoreText}</span>`;
   }
 
+  function formatWeekLabel(weekKey) {
+    const m = /^(\d{4})-wk(\d{2})$/.exec(weekKey || "");
+    if (!m) return weekKey || "unknown";
+    return `Week ${Number(m[2])}, ${m[1]}`;
+  }
+
+  function buildLeaderboard(picks, nameById) {
+    const stats = new Map();
+    for (const p of picks) {
+      if (!stats.has(p.member_id)) {
+        stats.set(p.member_id, { name: nameById.get(p.member_id) || p.member_id, wins: 0, losses: 0, pushes: 0, pending: 0 });
+      }
+      const s = stats.get(p.member_id);
+      if (p.result === "win") s.wins++;
+      else if (p.result === "loss") s.losses++;
+      else if (p.result === "push") s.pushes++;
+      else s.pending++;
+    }
+    return [...stats.values()].sort((a, b) => b.wins - a.wins || a.losses - b.losses);
+  }
+
   async function load() {
     const statusEl = document.getElementById("status");
-    const wrap = document.getElementById("tableWrap");
+    const leaderboardWrap = document.getElementById("leaderboardWrap");
+    const historyWrap = document.getElementById("historyWrap");
 
     try {
-      const week = new URLSearchParams(location.search).get("week") || await currentWeek();
-      if (!week) {
-        document.getElementById("weekLabel").textContent = "";
-        statusEl.textContent = "No upcoming games right now.";
-        return;
-      }
-      document.getElementById("weekLabel").textContent = formatWeekLabel(week);
-
       const [picksRes, membersRes] = await Promise.all([
-        fetch(`${API_BASE}/picks?week=${encodeURIComponent(week)}`, { cache: "no-store" }),
+        fetch(`${API_BASE}/picks`, { cache: "no-store" }),
         fetch(`${API_BASE}/members`, { cache: "no-store" })
       ]);
       if (!picksRes.ok) throw new Error(`HTTP ${picksRes.status}`);
@@ -130,37 +134,67 @@
       const membersData = membersRes.ok ? await membersRes.json() : { members: [] };
       const nameById = new Map(membersData.members.map(m => [m.member_id, m.name]));
 
-      const picks = (data.picks || [])
-        .map(p => ({ ...p, display_name: nameById.get(p.member_id) || p.member_id }))
-        .sort((a, b) => a.display_name.localeCompare(b.display_name));
+      const picks = (data.picks || []).map(p => ({ ...p, display_name: nameById.get(p.member_id) || p.member_id }));
 
-      statusEl.textContent = `${picks.length} pick${picks.length === 1 ? "" : "s"} so far`;
+      statusEl.textContent = `${picks.length} pick${picks.length === 1 ? "" : "s"} across the season`;
 
       if (!picks.length) {
-        wrap.innerHTML = '<div class="empty">No picks yet for this week.</div>';
+        leaderboardWrap.innerHTML = "";
+        historyWrap.innerHTML = '<div class="empty">No picks yet this season.</div>';
         return;
       }
 
-      const rows = picks.map(p => `
-        <tr>
-          <td>${p.display_name}</td>
-          <td>${p.team_name}</td>
-          <td>${p.opponent_name}</td>
-          <td>${fmtSpread(p.spread_at_pick)}</td>
-          <td>${resultPill(p)}</td>
-        </tr>
-      `).join("");
-
-      wrap.innerHTML = `
+      const leaderboard = buildLeaderboard(picks, nameById);
+      leaderboardWrap.innerHTML = `
+        <h2>Standings</h2>
         <table>
           <thead>
-            <tr><th>Member</th><th>Pick</th><th>Opponent</th><th>Spread at pick</th><th>Result</th></tr>
+            <tr><th>Member</th><th class="num">W</th><th class="num">L</th><th class="num">Push</th><th class="num">Pending</th></tr>
           </thead>
-          <tbody>${rows}</tbody>
+          <tbody>
+            ${leaderboard.map(s => `
+              <tr>
+                <td>${s.name}</td>
+                <td class="num">${s.wins}</td>
+                <td class="num">${s.losses}</td>
+                <td class="num">${s.pushes}</td>
+                <td class="num">${s.pending}</td>
+              </tr>
+            `).join("")}
+          </tbody>
         </table>
       `;
+
+      const byWeek = new Map();
+      for (const p of picks) {
+        if (!byWeek.has(p.week)) byWeek.set(p.week, []);
+        byWeek.get(p.week).push(p);
+      }
+      const weeks = [...byWeek.keys()].sort();
+
+      historyWrap.innerHTML = weeks.map(week => {
+        const weekPicks = byWeek.get(week).sort((a, b) => a.display_name.localeCompare(b.display_name));
+        const rows = weekPicks.map(p => `
+          <tr>
+            <td>${p.display_name}</td>
+            <td>${p.team_name}</td>
+            <td>${p.opponent_name}</td>
+            <td>${fmtSpread(p.spread_at_pick)}</td>
+            <td>${resultPill(p)}</td>
+          </tr>
+        `).join("");
+        return `
+          <div class="week-heading">${formatWeekLabel(week)}</div>
+          <table>
+            <thead>
+              <tr><th>Member</th><th>Pick</th><th>Opponent</th><th>Spread at pick</th><th>Result</th></tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      }).join("");
     } catch (err) {
-      statusEl.textContent = `Failed to load picks: ${err.message}`;
+      statusEl.textContent = `Failed to load season picks: ${err.message}`;
     }
   }
 

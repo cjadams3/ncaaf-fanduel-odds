@@ -96,7 +96,7 @@
 <div class="wrap">
   <h1>Make Your Pick</h1>
   <div class="subtitle">Pick a team to win this week &mdash; opponent and current spread fill in automatically.</div>
-  <nav><a href="index.html">Odds board</a><a href="picks.html">This week's picks</a></nav>
+  <nav><a href="index.html">Odds board</a><a href="picks.html">This week's picks</a><a href="season.html">Season standings</a></nav>
 
   <div class="card">
     <label for="memberSelect">Your name</label>
@@ -152,7 +152,10 @@
     try {
       const res = await fetch(DATA_URL, { cache: "no-store" });
       const data = await res.json();
-      games = data.games || [];
+      const now = Math.floor(Date.now() / 1000);
+      // Games that have already kicked off aren't pickable - the API enforces
+      // this too, but filtering here avoids offering a choice that will fail.
+      games = (data.games || []).filter(g => g.start_time > now);
 
       for (const g of games) {
         if (g.home_team_id) teamToGame.set(g.home_team_id, { game: g, side: "home" });
