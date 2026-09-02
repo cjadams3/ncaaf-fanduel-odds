@@ -72,19 +72,12 @@
     white-space: nowrap;
   }
   tr:last-child td { border-bottom: none; }
-  .matchup-row { display: flex; align-items: center; gap: 10px; }
-  .day-badge {
-    flex: 0 0 auto;
-    min-width: 30px;
-    text-align: center;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--muted);
+  .day-header td {
     background: color-mix(in srgb, var(--card) 80%, var(--accent));
-    border-radius: 5px;
-    padding: 4px 5px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 7px 12px;
   }
-  .teams { min-width: 0; }
   .team-row { font-weight: 600; white-space: nowrap; }
   .team-row + .team-row { margin-top: 2px; }
   .team-logo { width: 18px; height: 18px; vertical-align: -3px; margin-right: 5px; object-fit: contain; border-radius: 3px; background: #fff; padding: 1px; }
@@ -130,14 +123,17 @@
     return h.line < 0 ? { side: "home", line: `${h.line}` } : { side: "away", line: `${a.line}` };
   }
 
-  // Just the day of week - the Score column already shows the full
-  // date/time (from ESPN, pre-game) or live/final status, so repeating the
-  // full kickoff timestamp here would be redundant. Weekday alone is worth
-  // keeping since ESPN's text doesn't include it.
-  function fmtDayOfWeek(unixSeconds) {
+  // Games are already sorted by kickoff time, so same-day games are already
+  // contiguous - group them under one header instead of repeating the day
+  // on every row.
+  function dayGroupKey(unixSeconds) {
+    return new Date(unixSeconds * 1000).toDateString();
+  }
+
+  function fmtDayHeader(unixSeconds) {
     if (!unixSeconds) return "";
     const d = new Date(unixSeconds * 1000);
-    return d.toLocaleString(undefined, { weekday: "short" });
+    return d.toLocaleString(undefined, { weekday: "long", month: "long", day: "numeric" });
   }
 
   function fmtScore(score, homeAway) {
@@ -172,21 +168,26 @@
         return;
       }
 
+      let lastDayKey = null;
       const rows = games.map(g => {
         const fav = favoriteSide(g);
         const awayLabel = logoImg(logoById.get(g.away_team_id)) + g.away_team + (fav?.side === "away" ? ` (${fav.line})` : "");
         const homeLabel = logoImg(logoById.get(g.home_team_id)) + g.home_team + (fav?.side === "home" ? ` (${fav.line})` : "");
         const pkLabel = fav?.side === "pk" ? " (PK)" : "";
+
+        const dayKey = dayGroupKey(g.start_time);
+        let header = "";
+        if (dayKey !== lastDayKey) {
+          header = `<tr class="day-header"><td colspan="2">${fmtDayHeader(g.start_time)}</td></tr>`;
+          lastDayKey = dayKey;
+        }
+
         return `
+        ${header}
         <tr>
           <td>
-            <div class="matchup-row">
-              <span class="day-badge">${fmtDayOfWeek(g.start_time)}</span>
-              <div class="teams">
-                <div class="team-row">${awayLabel}</div>
-                <div class="team-row">@ ${homeLabel}${pkLabel}</div>
-              </div>
-            </div>
+            <div class="team-row">${awayLabel}</div>
+            <div class="team-row">@ ${homeLabel}${pkLabel}</div>
           </td>
           <td>${fmtScore(scores[g.event_id])}</td>
         </tr>
