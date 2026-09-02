@@ -90,6 +90,10 @@
   .status { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.9rem; display: none; }
   .status.ok { display: block; background: var(--ok-bg); color: var(--ok-text); }
   .status.err { display: block; background: var(--err-bg); color: var(--err-text); }
+  .existing-pick { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 0.85rem; display: none; }
+  .existing-pick.visible { display: block; }
+  .existing-pick.info { background: color-mix(in srgb, var(--card) 85%, var(--accent)); color: var(--text); }
+  .existing-pick.locked { background: var(--err-bg); color: var(--err-text); }
 </style>
 </head>
 <body>
@@ -101,6 +105,7 @@
   <div class="card">
     <label for="memberSelect">Your name</label>
     <select id="memberSelect"><option value="">Loading…</option></select>
+    <div class="existing-pick" id="existingPickBox"></div>
 
     <label for="teamSelect">Team</label>
     <select id="teamSelect"><option value="">Loading…</option></select>
@@ -122,6 +127,8 @@
 
   let games = [];
   let teamToGame = new Map();
+  let currentWeek = null;
+  let picksThisWeek = new Map();
 
   function fmtKickoff(unixSeconds) {
     const d = new Date(unixSeconds * 1000);
@@ -153,6 +160,7 @@
       const res = await fetch(DATA_URL, { cache: "no-store" });
       const data = await res.json();
       const now = Math.floor(Date.now() / 1000);
+      currentWeek = data.games?.[0]?.week || null;
       // Games that have already kicked off aren't pickable - the API enforces
       // this too, but filtering here avoids offering a choice that will fail.
       games = (data.games || []).filter(g => g.start_time > now);
@@ -174,6 +182,44 @@
     } catch (err) {
       teamSelect.innerHTML = '<option value="">Failed to load teams</option>';
     }
+  }
+
+  async function loadExistingPicks() {
+    if (!currentWeek) return;
+    try {
+      const res = await fetch(`${API_BASE}/picks?week=${encodeURIComponent(currentWeek)}`, { cache: "no-store" });
+      const data = await res.json();
+      picksThisWeek = new Map((data.picks || []).map(p => [p.member_id, p]));
+    } catch (err) {
+      picksThisWeek = new Map();
+    }
+  }
+
+  // Shows the member's existing pick for the week, if any, and locks the
+  // form entirely once that pick's game has started - otherwise a member
+  // could dodge their original pick by switching to a different game later.
+  function onMemberChange() {
+    const memberId = document.getElementById("memberSelect").value;
+    const box = document.getElementById("existingPickBox");
+    const teamSelect = document.getElementById("teamSelect");
+    const existing = picksThisWeek.get(memberId);
+    const now = Math.floor(Date.now() / 1000);
+    const locked = existing && existing.game_start_time <= now;
+
+    teamSelect.disabled = !!locked;
+
+    if (!existing) {
+      box.className = "existing-pick";
+      box.textContent = "";
+    } else if (locked) {
+      box.className = "existing-pick locked visible";
+      box.textContent = `Your pick this week (${existing.team_name} vs ${existing.opponent_name}) has already started and can no longer be changed.`;
+    } else {
+      box.className = "existing-pick info visible";
+      box.textContent = `You currently have ${existing.team_name} picked (vs ${existing.opponent_name}). Picking a different team will replace it.`;
+    }
+
+    updateSubmitState();
   }
 
   function onTeamChange() {
@@ -203,7 +249,9 @@
   function updateSubmitState() {
     const memberId = document.getElementById("memberSelect").value;
     const teamId = document.getElementById("teamSelect").value;
-    document.getElementById("submitBtn").disabled = !(memberId && teamId);
+    const existing = picksThisWeek.get(memberId);
+    const locked = existing && existing.game_start_time <= Math.floor(Date.now() / 1000);
+    document.getElementById("submitBtn").disabled = !(memberId && teamId) || !!locked;
   }
 
   async function submitPick() {
@@ -213,7 +261,9 @@
     const statusBox = document.getElementById("statusBox");
     const submitBtn = document.getElementById("submitBtn");
 
-    if (!memberId || !teamId || !entry) return;
+    const existing = picksThisWeek.get(memberId);
+    const locked = existing && existing.game_start_time <= Math.floor(Date.now() / 1000);
+    if (!memberId || !teamId || !entry || locked) return;
 
     submitBtn.disabled = true;
     statusBox.className = "status";
@@ -228,6 +278,9 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
 
+      picksThisWeek.set(memberId, data.pick);
+      onMemberChange();
+
       statusBox.className = "status ok";
       statusBox.textContent = `Pick saved: ${data.pick.team_name} vs ${data.pick.opponent_name}.`;
     } catch (err) {
@@ -238,12 +291,12 @@
     }
   }
 
-  document.getElementById("memberSelect").addEventListener("change", updateSubmitState);
+  document.getElementById("memberSelect").addEventListener("change", onMemberChange);
   document.getElementById("teamSelect").addEventListener("change", onTeamChange);
   document.getElementById("submitBtn").addEventListener("click", submitPick);
 
   loadMembers();
-  loadTeams();
+  loadTeams().then(loadExistingPicks);
 </script>
 </body>
 </html>
