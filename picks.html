@@ -232,18 +232,38 @@
       const nameById = new Map(membersData.members.map(m => [m.member_id, m.name]));
 
       const picks = (data.picks || [])
-        .map(p => ({ ...p, display_name: nameById.get(p.member_id) || p.member_id }))
-        .sort((a, b) => a.display_name.localeCompare(b.display_name));
+        .map(p => ({ ...p, display_name: nameById.get(p.member_id) || p.member_id }));
 
-      statusEl.textContent = `${picks.length} pick${picks.length === 1 ? "" : "s"} so far`;
+      // Members with no pick row yet this week (as opposed to a "No Pick"
+      // row the grader writes once the week is over) still get a row, so
+      // the table shows the whole roster's status, not just who's acted.
+      const pickedMemberIds = new Set(picks.map(p => p.member_id));
+      const notSubmitted = (membersData.members || [])
+        .filter(m => !pickedMemberIds.has(m.member_id))
+        .map(m => ({ member_id: m.member_id, display_name: m.name, not_submitted: true }));
 
-      if (!picks.length) {
+      const rowsData = [...picks, ...notSubmitted].sort((a, b) => a.display_name.localeCompare(b.display_name));
+
+      statusEl.textContent = `${picks.length} of ${membersData.members?.length ?? picks.length} picks so far`;
+
+      if (!rowsData.length) {
         wrap.innerHTML = '<div class="empty">No picks yet for this week.</div>';
         return;
       }
 
       const now = Math.floor(Date.now() / 1000);
-      const rows = picks.map(p => {
+      const rows = rowsData.map(p => {
+        if (p.not_submitted) {
+          return `
+        <tr>
+          <td>${p.display_name}</td>
+          <td><span class="hidden-pick">No pick yet</span></td>
+          <td>&mdash;</td>
+          <td>&mdash;</td>
+          <td><span class="pill pending">Not submitted</span></td>
+        </tr>
+      `;
+        }
         const hidden = isHiddenPick(p, now);
         const pickCell = hidden
           ? '<span class="hidden-pick">Hidden until kickoff</span>'
