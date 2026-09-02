@@ -72,10 +72,24 @@
     white-space: nowrap;
   }
   tr:last-child td { border-bottom: none; }
+  .matchup-row { display: flex; align-items: center; gap: 10px; }
+  .day-badge {
+    flex: 0 0 auto;
+    min-width: 30px;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--card) 80%, var(--accent));
+    border-radius: 5px;
+    padding: 4px 5px;
+  }
+  .teams { min-width: 0; }
   .team-row { font-weight: 600; white-space: nowrap; }
   .team-row + .team-row { margin-top: 2px; }
   .team-logo { width: 18px; height: 18px; vertical-align: -3px; margin-right: 5px; object-fit: contain; border-radius: 3px; background: #fff; padding: 1px; }
-  .kickoff { color: var(--muted); font-size: 0.8rem; margin-top: 3px; }
+  .kickoff { color: var(--muted); font-size: 0.8rem; }
+  .odds-cell { font-variant-numeric: tabular-nums; }
   .odds-cell { font-variant-numeric: tabular-nums; }
   .empty { padding: 40px; text-align: center; color: var(--muted); }
   @media (max-width: 480px) {
@@ -166,9 +180,13 @@
         return `
         <tr>
           <td>
-            <div class="team-row">${awayLabel}</div>
-            <div class="team-row">${homeLabel}${pkLabel}</div>
-            <div class="kickoff">${fmtDayOfWeek(g.start_time)}</div>
+            <div class="matchup-row">
+              <span class="day-badge">${fmtDayOfWeek(g.start_time)}</span>
+              <div class="teams">
+                <div class="team-row">${awayLabel}</div>
+                <div class="team-row">@ ${homeLabel}${pkLabel}</div>
+              </div>
+            </div>
           </td>
           <td>${fmtScore(scores[g.event_id])}</td>
         </tr>
