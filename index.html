@@ -57,7 +57,7 @@
   }
   table {
     width: 100%;
-    min-width: 460px;
+    min-width: 320px;
     border-collapse: collapse;
   }
   th, td {
@@ -72,9 +72,10 @@
     white-space: nowrap;
   }
   tr:last-child td { border-bottom: none; }
-  .matchup { font-weight: 600; }
+  .team-row { font-weight: 600; white-space: nowrap; }
+  .team-row + .team-row { margin-top: 2px; }
   .team-logo { width: 18px; height: 18px; vertical-align: -3px; margin-right: 5px; object-fit: contain; border-radius: 3px; background: #fff; padding: 1px; }
-  .kickoff { color: var(--muted); font-size: 0.8rem; }
+  .kickoff { color: var(--muted); font-size: 0.8rem; margin-top: 3px; }
   .odds-cell { font-variant-numeric: tabular-nums; }
   .empty { padding: 40px; text-align: center; color: var(--muted); }
   @media (max-width: 480px) {
@@ -115,10 +116,14 @@
     return h.line < 0 ? { side: "home", line: `${h.line}` } : { side: "away", line: `${a.line}` };
   }
 
-  function fmtKickoff(unixSeconds) {
+  // Just the day of week - the Score column already shows the full
+  // date/time (from ESPN, pre-game) or live/final status, so repeating the
+  // full kickoff timestamp here would be redundant. Weekday alone is worth
+  // keeping since ESPN's text doesn't include it.
+  function fmtDayOfWeek(unixSeconds) {
     if (!unixSeconds) return "";
     const d = new Date(unixSeconds * 1000);
-    return d.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    return d.toLocaleString(undefined, { weekday: "short" });
   }
 
   function fmtScore(score, homeAway) {
@@ -161,8 +166,9 @@
         return `
         <tr>
           <td>
-            <div class="matchup">${awayLabel} @ ${homeLabel}${pkLabel}</div>
-            <div class="kickoff">${fmtKickoff(g.start_time)}</div>
+            <div class="team-row">${awayLabel}</div>
+            <div class="team-row">${homeLabel}${pkLabel}</div>
+            <div class="kickoff">${fmtDayOfWeek(g.start_time)}</div>
           </td>
           <td>${fmtScore(scores[g.event_id])}</td>
         </tr>
