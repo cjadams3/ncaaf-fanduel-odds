@@ -104,6 +104,8 @@
     return `Week ${Number(m[2])}, ${m[1]}`;
   }
 
+  const DOLLARS_OWED_PER_LOSS = 10;
+
   function buildLeaderboard(picks, nameById) {
     const stats = new Map();
     for (const p of picks) {
@@ -116,6 +118,7 @@
       else if (p.result === "push") s.pushes++;
       else s.pending++;
     }
+    for (const s of stats.values()) s.owed = s.losses * DOLLARS_OWED_PER_LOSS;
     return [...stats.values()].sort((a, b) => b.wins - a.wins || a.losses - b.losses);
   }
 
@@ -149,7 +152,7 @@
         <h2>Standings</h2>
         <table>
           <thead>
-            <tr><th>Member</th><th class="num">W</th><th class="num">L</th><th class="num">Push</th><th class="num">Pending</th></tr>
+            <tr><th>Member</th><th class="num">W</th><th class="num">L</th><th class="num">Push</th><th class="num">Pending</th><th class="num">Owed</th></tr>
           </thead>
           <tbody>
             ${leaderboard.map(s => `
@@ -159,6 +162,7 @@
                 <td class="num">${s.losses}</td>
                 <td class="num">${s.pushes}</td>
                 <td class="num">${s.pending}</td>
+                <td class="num">$${s.owed}</td>
               </tr>
             `).join("")}
           </tbody>
