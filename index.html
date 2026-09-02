@@ -157,13 +157,13 @@
   }
   .nav-toggle span { display: block; width: 16px; height: 2px; background: var(--text); border-radius: 1px; }
   @media (max-width: 600px) {
-    nav { display: flex; justify-content: flex-end; position: relative; }
+    nav { display: flex; justify-content: flex-start; position: relative; }
     .nav-toggle { display: flex; }
     .nav-links {
       display: none;
       position: absolute;
       top: 42px;
-      right: 0;
+      left: 0;
       z-index: 20;
       flex-direction: column;
       gap: 2px;
@@ -184,15 +184,15 @@
 </style>
 </head>
 <body>
-  <h1>NCAAF Odds &mdash; FanDuel</h1>
-  <div class="subtitle">Point spread for upcoming games. Times shown are your device's local time zone.</div>
+  <h1 id="pageTitle">NCAAF Odds</h1>
+  <div class="subtitle">Point spread for upcoming games.<br>Times shown are your device's local time zone.</div>
   <nav>
     <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
     <div class="nav-links" id="navLinks">
-      <a href="pick.html">Make a pick</a>
-      <a href="picks.html">This week's picks</a>
-      <a href="season.html">Season standings</a>
-      <a href="recap.html">Weekly recap</a>
+      <a href="pick.html">Make Your Pick</a>
+      <a href="picks.html">This Week's Picks</a>
+      <a href="season.html">Season Standings</a>
+      <a href="recap.html">Weekly Recap</a>
     </div>
   </nav>
   <div class="status" id="status">Loading…</div>
@@ -305,6 +305,11 @@
       const scores = scoresData.scores || {};
       const teamsData = teamsRes && teamsRes.ok ? await teamsRes.json() : { teams: [] };
       const logoById = new Map((teamsData.teams || []).map(t => [t.id, t.logo]));
+
+      const weekMatch = /^\d{4}-wk(\d{2})$/.exec(games[0]?.week || "");
+      document.getElementById("pageTitle").textContent = weekMatch
+        ? `NCAAF Odds - Week ${Number(weekMatch[1])}`
+        : "NCAAF Odds";
 
       statusEl.textContent = `${games.length} games · updated ${new Date(data.generated_at).toLocaleString()}`;
 

@@ -88,13 +88,13 @@
   }
   .nav-toggle span { display: block; width: 16px; height: 2px; background: var(--text); border-radius: 1px; }
   @media (max-width: 600px) {
-    nav { display: flex; justify-content: flex-end; position: relative; }
+    nav { display: flex; justify-content: flex-start; position: relative; }
     .nav-toggle { display: flex; }
     .nav-links {
       display: none;
       position: absolute;
       top: 42px;
-      right: 0;
+      left: 0;
       z-index: 20;
       flex-direction: column;
       gap: 2px;
@@ -120,10 +120,10 @@
   <nav>
     <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
     <div class="nav-links" id="navLinks">
-      <a href="index.html">Odds board</a>
-      <a href="pick.html">Make a pick</a>
-      <a href="season.html">Season standings</a>
-      <a href="recap.html">Weekly recap</a>
+      <a href="index.html">Odds Board</a>
+      <a href="pick.html">Make Your Pick</a>
+      <a href="season.html">Season Standings</a>
+      <a href="recap.html">Weekly Recap</a>
     </div>
   </nav>
   <div class="status" id="status">Loading…</div>
