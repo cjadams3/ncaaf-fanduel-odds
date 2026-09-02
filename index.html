@@ -156,6 +156,10 @@
     cursor: pointer;
   }
   .nav-toggle span { display: block; width: 16px; height: 2px; background: var(--text); border-radius: 1px; }
+  .page-head { display: flex; flex-direction: column; }
+  @media (min-width: 601px) {
+    .page-head nav { order: 1; }
+  }
   @media (max-width: 600px) {
     nav { display: flex; justify-content: flex-start; position: relative; }
     .nav-toggle { display: flex; }
@@ -184,17 +188,21 @@
 </style>
 </head>
 <body>
-  <h1 id="pageTitle">NCAAF Odds</h1>
-  <div class="subtitle">Point spread for upcoming games.<br>Times shown are your device's local time zone.</div>
-  <nav>
-    <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
-    <div class="nav-links" id="navLinks">
-      <a href="pick.html">Make Your Pick</a>
-      <a href="picks.html">This Week's Picks</a>
-      <a href="season.html">Season Standings</a>
-      <a href="recap.html">Weekly Recap</a>
+  <div class="page-head">
+    <nav>
+      <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+      <div class="nav-links" id="navLinks">
+        <a href="pick.html">Make Your Pick</a>
+        <a href="picks.html">This Week's Picks</a>
+        <a href="season.html">Season Standings</a>
+        <a href="recap.html">Weekly Recap</a>
+      </div>
+    </nav>
+    <div class="title-block">
+      <h1 id="pageTitle">NCAAF Odds</h1>
+      <div class="subtitle">Point spread for upcoming games.<br>Times shown are your device's local time zone.</div>
     </div>
-  </nav>
+  </div>
   <div class="status" id="status">Loading…</div>
   <div id="tableWrap"></div>
 

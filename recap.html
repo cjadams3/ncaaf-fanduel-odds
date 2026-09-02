@@ -68,6 +68,10 @@
     cursor: pointer;
   }
   .nav-toggle span { display: block; width: 16px; height: 2px; background: var(--text); border-radius: 1px; }
+  .page-head { display: flex; flex-direction: column; }
+  @media (min-width: 601px) {
+    .page-head nav { order: 1; }
+  }
   @media (max-width: 600px) {
     nav { display: flex; justify-content: flex-start; position: relative; }
     .nav-toggle { display: flex; }
@@ -96,17 +100,21 @@
 </style>
 </head>
 <body>
-  <h1>Weekly Recap</h1>
-  <div class="subtitle">Written by Claude, straight from the week's picks and box scores.</div>
-  <nav>
-    <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
-    <div class="nav-links" id="navLinks">
-      <a href="index.html">Odds Board</a>
-      <a href="pick.html">Make Your Pick</a>
-      <a href="picks.html">This Week's Picks</a>
-      <a href="season.html">Season Standings</a>
+  <div class="page-head">
+    <nav>
+      <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html">Odds Board</a>
+        <a href="pick.html">Make Your Pick</a>
+        <a href="picks.html">This Week's Picks</a>
+        <a href="season.html">Season Standings</a>
+      </div>
+    </nav>
+    <div class="title-block">
+      <h1>Weekly Recap</h1>
+      <div class="subtitle">Written by Claude, straight from the week's picks and box scores.</div>
     </div>
-  </nav>
+  </div>
   <div class="status" id="status">Loading…</div>
   <div id="wrap"></div>
 
