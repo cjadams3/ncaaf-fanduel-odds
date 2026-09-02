@@ -77,8 +77,10 @@
     font-size: 0.9rem;
   }
   /* Shrink the Score column to fit its content instead of stretching with
-     the table - keeps it snug against the Matchup column. */
-  th:last-child, td:last-child {
+     the table - keeps it snug against the Matchup column. A class rather
+     than :last-child, since Matchup becomes the last (only) column when
+     the Score column is hidden entirely (no games have started yet). */
+  .score-col {
     width: 1%;
     white-space: nowrap;
   }
@@ -143,7 +145,7 @@
 </head>
 <body>
   <h1>NCAAF Odds &mdash; FanDuel</h1>
-  <div class="subtitle">Point spread for upcoming games, refreshed every ~30 minutes.</div>
+  <div class="subtitle">Point spread for upcoming games. Times shown are your device's local time zone.</div>
   <nav style="margin-bottom: 16px; font-size: 0.85rem;">
     <a href="pick.html" style="color: var(--accent); text-decoration: none; margin-right: 12px;">Make a pick</a>
     <a href="picks.html" style="color: var(--accent); text-decoration: none; margin-right: 12px;">This week's picks</a>
@@ -189,6 +191,8 @@
   // Kickoff time in the viewer's own local time zone - shown under the
   // matchup itself now, rather than the ESPN pre-game text (fixed to
   // Eastern) that used to live in the Score column.
+  // Viewer's own browser time zone - the subtitle notes this so no one is
+  // confused if a game's time doesn't match what they'd expect elsewhere.
   function fmtKickoffTime(unixSeconds) {
     if (!unixSeconds) return "";
     const d = new Date(unixSeconds * 1000);
@@ -236,6 +240,14 @@
         return;
       }
 
+      // Only show the Score column once at least one game actually has
+      // live/final data - an all-empty column before any kickoff is just
+      // dead space.
+      const hasAnyScore = games.some(g => {
+        const s = scores[g.event_id];
+        return s && s.state !== "pre" && s.home_score != null && s.away_score != null;
+      });
+
       let lastDayKey = null;
       const rows = games.map(g => {
         const fav = favoriteSide(g);
@@ -246,7 +258,7 @@
         const dayKey = dayGroupKey(g.start_time);
         let header = "";
         if (dayKey !== lastDayKey) {
-          header = `<tr class="day-header"><td colspan="2">${fmtDayHeader(g.start_time)}</td></tr>`;
+          header = `<tr class="day-header"><td colspan="${hasAnyScore ? 2 : 1}">${fmtDayHeader(g.start_time)}</td></tr>`;
           lastDayKey = dayKey;
         }
 
@@ -258,7 +270,7 @@
             <div class="team-row">@ ${homeLabel}${pkLabel}</div>
             <div class="kickoff">${fmtKickoffTime(g.start_time)}</div>
           </td>
-          <td>${fmtScore(scores[g.event_id])}</td>
+          ${hasAnyScore ? `<td class="score-col">${fmtScore(scores[g.event_id])}</td>` : ""}
         </tr>
       `;
       }).join("");
@@ -269,7 +281,7 @@
             <thead>
               <tr>
                 <th>Matchup</th>
-                <th>Score</th>
+                ${hasAnyScore ? '<th class="score-col">Score</th>' : ""}
               </tr>
             </thead>
             <tbody>${rows}</tbody>
