@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>This Week's Picks</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
 <style>
   :root {
     color-scheme: light dark;
@@ -62,6 +63,7 @@
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
   th { background: color-mix(in srgb, var(--card) 90%, var(--accent)); font-weight: 600; white-space: nowrap; }
   tr:last-child td { border-bottom: none; }
+  .team-logo { width: 18px; height: 18px; vertical-align: -3px; margin-right: 5px; object-fit: contain; border-radius: 3px; background: #fff; padding: 1px; }
   .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
   .pill.pending { background: color-mix(in srgb, var(--card) 85%, var(--muted)); color: var(--muted); }
   .pill.win { background: var(--win-bg); color: var(--win-text); }
@@ -84,6 +86,21 @@
 <script>
   const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
   const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
+  const TEAMS_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/teams.json";
+
+  function logoImg(logoUrl) {
+    return logoUrl ? `<img class="team-logo" src="${logoUrl}" alt="" loading="lazy" />` : "";
+  }
+
+  async function loadLogoMap() {
+    try {
+      const res = await fetch(TEAMS_URL, { cache: "no-store" });
+      const data = await res.json();
+      return new Map((data.teams || []).map(t => [t.id, t.logo]));
+    } catch {
+      return new Map();
+    }
+  }
 
   // Games are already sorted by kickoff time, so the earliest upcoming game's
   // week is "this week" - avoids duplicating ESPN's week-boundary logic here.
@@ -129,9 +146,10 @@
       }
       document.getElementById("weekLabel").textContent = formatWeekLabel(week);
 
-      const [picksRes, membersRes] = await Promise.all([
+      const [picksRes, membersRes, logoById] = await Promise.all([
         fetch(`${API_BASE}/picks?week=${encodeURIComponent(week)}`, { cache: "no-store" }),
-        fetch(`${API_BASE}/members`, { cache: "no-store" })
+        fetch(`${API_BASE}/members`, { cache: "no-store" }),
+        loadLogoMap()
       ]);
       if (!picksRes.ok) throw new Error(`HTTP ${picksRes.status}`);
       const data = await picksRes.json();
@@ -152,8 +170,8 @@
       const rows = picks.map(p => `
         <tr>
           <td>${p.display_name}</td>
-          <td>${p.team_name}</td>
-          <td>${p.opponent_name}</td>
+          <td>${logoImg(logoById.get(p.team_id))}${p.team_name}</td>
+          <td>${logoImg(logoById.get(p.opponent_team_id))}${p.opponent_name}</td>
           <td>${fmtSpread(p.spread_at_pick)}</td>
           <td>${resultPill(p)}</td>
         </tr>

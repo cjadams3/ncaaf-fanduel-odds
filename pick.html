@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Make Your Pick</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
 <style>
   :root {
     color-scheme: light dark;
@@ -74,6 +75,7 @@
   .game-info.visible { display: block; }
   .game-info .row { display: flex; justify-content: space-between; margin: 4px 0; }
   .game-info .label { color: var(--muted); }
+  .team-logo { width: 20px; height: 20px; vertical-align: -5px; margin-right: 6px; object-fit: contain; border-radius: 3px; background: #fff; padding: 1px; }
   button {
     margin-top: 20px;
     width: 100%;
@@ -115,6 +117,7 @@
     <select id="teamSelect"><option value="">Loading…</option></select>
 
     <div class="game-info" id="gameInfo">
+      <div class="row"><span class="label">Your pick</span><span id="giTeam"></span></div>
       <div class="row"><span class="label">Opponent</span><span id="giOpponent"></span></div>
       <div class="row"><span class="label">Kickoff</span><span id="giKickoff"></span></div>
       <div class="row"><span class="label">Current spread</span><span id="giSpread"></span></div>
@@ -128,11 +131,27 @@
 <script>
   const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
   const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
+  const TEAMS_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/teams.json";
 
   let games = [];
   let teamToGame = new Map();
   let currentWeek = null;
   let picksThisWeek = new Map();
+  let logoById = new Map();
+
+  function logoImg(logoUrl) {
+    return logoUrl ? `<img class="team-logo" src="${logoUrl}" alt="" loading="lazy" />` : "";
+  }
+
+  async function loadLogoMap() {
+    try {
+      const res = await fetch(TEAMS_URL, { cache: "no-store" });
+      const data = await res.json();
+      logoById = new Map((data.teams || []).map(t => [t.id, t.logo]));
+    } catch {
+      logoById = new Map();
+    }
+  }
 
   function fmtKickoff(unixSeconds) {
     const d = new Date(unixSeconds * 1000);
@@ -240,9 +259,12 @@
 
     const { game, side } = entry;
     const opponent = side === "home" ? game.away_team : game.home_team;
+    const opponentId = side === "home" ? game.away_team_id : game.home_team_id;
     const spread = side === "home" ? game.spread?.home : game.spread?.away;
+    const teamName = teamToGame.get(teamId) ? (side === "home" ? game.home_team : game.away_team) : "";
 
-    document.getElementById("giOpponent").textContent = opponent;
+    document.getElementById("giTeam").innerHTML = `${logoImg(logoById.get(teamId))}${teamName}`;
+    document.getElementById("giOpponent").innerHTML = `${logoImg(logoById.get(opponentId))}${opponent}`;
     document.getElementById("giKickoff").textContent = fmtKickoff(game.start_time);
     document.getElementById("giSpread").textContent = fmtSpread(spread);
     gameInfo.classList.add("visible");
@@ -300,6 +322,7 @@
   document.getElementById("submitBtn").addEventListener("click", submitPick);
 
   loadMembers();
+  loadLogoMap();
   loadTeams().then(loadExistingPicks);
 </script>
 </body>
