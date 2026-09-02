@@ -94,6 +94,10 @@
   .existing-pick.visible { display: block; }
   .existing-pick.info { background: color-mix(in srgb, var(--card) 85%, var(--accent)); color: var(--text); }
   .existing-pick.locked { background: var(--err-bg); color: var(--err-text); }
+  @media (max-width: 480px) {
+    body { padding: 16px 12px 48px; }
+    .card { padding: 16px; }
+  }
 </style>
 </head>
 <body>

@@ -47,27 +47,35 @@
   nav a { color: var(--accent); text-decoration: none; margin-right: 12px; }
   nav a:hover { text-decoration: underline; }
   .status { font-size: 0.85rem; color: var(--muted); margin-bottom: 16px; }
-  table {
-    width: 100%;
+  .table-scroll {
     max-width: 760px;
-    border-collapse: collapse;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 8px;
-    overflow: hidden;
     margin-bottom: 8px;
   }
+  table {
+    width: 100%;
+    min-width: 420px;
+    border-collapse: collapse;
+  }
   th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-  th { background: color-mix(in srgb, var(--card) 90%, var(--accent)); font-weight: 600; }
+  th { background: color-mix(in srgb, var(--card) 90%, var(--accent)); font-weight: 600; white-space: nowrap; }
   tr:last-child td { border-bottom: none; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .week-heading { margin: 24px 0 8px; font-size: 0.9rem; font-weight: 600; color: var(--muted); }
-  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
   .pill.pending { background: color-mix(in srgb, var(--card) 85%, var(--muted)); color: var(--muted); }
   .pill.win { background: var(--win-bg); color: var(--win-text); }
   .pill.loss { background: var(--loss-bg); color: var(--loss-text); }
   .pill.push { background: color-mix(in srgb, var(--card) 85%, var(--accent)); color: var(--accent); }
   .empty { padding: 40px; text-align: center; color: var(--muted); }
+  @media (max-width: 480px) {
+    body { padding: 16px 12px 48px; }
+    th, td { padding: 8px 10px; font-size: 0.85rem; }
+  }
 </style>
 </head>
 <body>
@@ -150,23 +158,25 @@
       const leaderboard = buildLeaderboard(picks, nameById);
       leaderboardWrap.innerHTML = `
         <h2>Standings</h2>
-        <table>
-          <thead>
-            <tr><th>Member</th><th class="num">W</th><th class="num">L</th><th class="num">Push</th><th class="num">Pending</th><th class="num">Owed</th></tr>
-          </thead>
-          <tbody>
-            ${leaderboard.map(s => `
-              <tr>
-                <td>${s.name}</td>
-                <td class="num">${s.wins}</td>
-                <td class="num">${s.losses}</td>
-                <td class="num">${s.pushes}</td>
-                <td class="num">${s.pending}</td>
-                <td class="num">$${s.owed}</td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>Member</th><th class="num">W</th><th class="num">L</th><th class="num">Push</th><th class="num">Pending</th><th class="num">Owed</th></tr>
+            </thead>
+            <tbody>
+              ${leaderboard.map(s => `
+                <tr>
+                  <td>${s.name}</td>
+                  <td class="num">${s.wins}</td>
+                  <td class="num">${s.losses}</td>
+                  <td class="num">${s.pushes}</td>
+                  <td class="num">${s.pending}</td>
+                  <td class="num">$${s.owed}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
       `;
 
       const byWeek = new Map();
@@ -189,12 +199,14 @@
         `).join("");
         return `
           <div class="week-heading">${formatWeekLabel(week)}</div>
-          <table>
-            <thead>
-              <tr><th>Member</th><th>Pick</th><th>Opponent</th><th>Spread at pick</th><th>Result</th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>Member</th><th>Pick</th><th>Opponent</th><th>Spread at pick</th><th>Result</th></tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
         `;
       }).join("");
     } catch (err) {
