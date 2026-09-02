@@ -200,11 +200,15 @@
   const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
   const TEAMS_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/teams.json";
 
+  const MAX_PICKS_PER_TEAM = 2;
+
   let games = [];
   let teamToGame = new Map();
   let currentWeek = null;
   let picksThisWeek = new Map();
   let logoById = new Map();
+  let teamOptions = [];
+  let seasonPicks = [];
 
   function logoImg(logoUrl) {
     return logoUrl ? `<img class="team-logo" src="${logoUrl}" alt="" loading="lazy" />` : "";
@@ -258,15 +262,14 @@
         if (g.away_team_id) teamToGame.set(g.away_team_id, { game: g, side: "away" });
       }
 
-      const options = [];
+      teamOptions = [];
       for (const g of games) {
-        if (g.home_team_id) options.push({ id: g.home_team_id, name: g.home_team });
-        if (g.away_team_id) options.push({ id: g.away_team_id, name: g.away_team });
+        if (g.home_team_id) teamOptions.push({ id: g.home_team_id, name: g.home_team });
+        if (g.away_team_id) teamOptions.push({ id: g.away_team_id, name: g.away_team });
       }
-      options.sort((a, b) => a.name.localeCompare(b.name));
+      teamOptions.sort((a, b) => a.name.localeCompare(b.name));
 
-      teamSelect.innerHTML = '<option value="">Select a team…</option>' +
-        options.map(o => `<option value="${o.id}">${o.name}</option>`).join("");
+      renderTeamOptions();
     } catch (err) {
       teamSelect.innerHTML = '<option value="">Failed to load teams</option>';
     }
@@ -280,6 +283,46 @@
       picksThisWeek = new Map((data.picks || []).map(p => [p.member_id, p]));
     } catch (err) {
       picksThisWeek = new Map();
+    }
+  }
+
+  // Fetches every pick ever made, across all weeks, so the team dropdown can
+  // gray out teams a member has already used up (max twice per team, per
+  // season). Picks for the current week are excluded from the count -
+  // editing this week's own pick shouldn't count as an extra use of a team.
+  async function loadSeasonPicks() {
+    try {
+      const res = await fetch(`${API_BASE}/picks`, { cache: "no-store" });
+      const data = await res.json();
+      seasonPicks = data.picks || [];
+    } catch (err) {
+      seasonPicks = [];
+    }
+  }
+
+  function teamUseCount(memberId, teamId) {
+    return seasonPicks.filter(p => p.member_id === memberId && p.team_id === teamId && p.week !== currentWeek).length;
+  }
+
+  // Rebuilds the team <select> for the currently chosen member, disabling
+  // any team they've already picked MAX_PICKS_PER_TEAM times this season.
+  function renderTeamOptions() {
+    const teamSelect = document.getElementById("teamSelect");
+    const memberId = document.getElementById("memberSelect").value;
+    const prevValue = teamSelect.value;
+
+    const optionsHtml = teamOptions.map(o => {
+      const used = memberId ? teamUseCount(memberId, o.id) : 0;
+      const maxedOut = used >= MAX_PICKS_PER_TEAM;
+      const label = maxedOut ? `${o.name} (already picked ${MAX_PICKS_PER_TEAM}x)` : o.name;
+      return `<option value="${o.id}"${maxedOut ? " disabled" : ""}>${label}</option>`;
+    }).join("");
+
+    teamSelect.innerHTML = '<option value="">Select a team…</option>' + optionsHtml;
+
+    // Keep the previous selection only if it's still pickable for this member.
+    if (prevValue && !(memberId && teamUseCount(memberId, prevValue) >= MAX_PICKS_PER_TEAM)) {
+      teamSelect.value = prevValue;
     }
   }
 
@@ -307,7 +350,8 @@
       box.textContent = `You currently have ${existing.team_name} picked (vs ${existing.opponent_name}). Picking a different team will replace it.`;
     }
 
-    updateSubmitState();
+    renderTeamOptions();
+    onTeamChange();
   }
 
   function onTeamChange() {
@@ -388,6 +432,7 @@
 
   loadMembers();
   loadLogoMap();
+  loadSeasonPicks();
   loadTeams().then(loadExistingPicks);
 </script>
 </body>
