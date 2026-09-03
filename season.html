@@ -160,7 +160,20 @@
   }
 
   const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
+  const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
   const TEAMS_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/teams.json";
+
+  // Games are already sorted by kickoff time, so the earliest upcoming game's
+  // week is "this week" - matches picks.html's own definition of current week.
+  async function currentWeek() {
+    try {
+      const res = await fetch(DATA_URL, { cache: "no-store" });
+      const data = await res.json();
+      return data.games?.[0]?.week || null;
+    } catch {
+      return null;
+    }
+  }
 
   function logoImg(logoUrl) {
     return logoUrl ? `<img class="team-logo" src="${logoUrl}" alt="" loading="lazy" />` : "";
@@ -228,10 +241,11 @@
     const historyWrap = document.getElementById("historyWrap");
 
     try {
-      const [picksRes, membersRes, logoById] = await Promise.all([
+      const [picksRes, membersRes, logoById, thisWeek] = await Promise.all([
         fetch(`${API_BASE}/picks`, { cache: "no-store" }),
         fetch(`${API_BASE}/members`, { cache: "no-store" }),
-        loadLogoMap()
+        loadLogoMap(),
+        currentWeek()
       ]);
       if (!picksRes.ok) throw new Error(`HTTP ${picksRes.status}`);
       const data = await picksRes.json();
@@ -242,7 +256,17 @@
 
       statusEl.textContent = `${picks.length} pick${picks.length === 1 ? "" : "s"} across the season`;
 
-      if (!picks.length) {
+      // Members with no pick row yet for the current week still get a row
+      // (as opposed to a "No Pick" row the grader writes once the week is
+      // over), so the current week's table reflects the whole roster.
+      const pickedThisWeek = new Set(picks.filter(p => p.week === thisWeek).map(p => p.member_id));
+      const notSubmitted = thisWeek
+        ? (membersData.members || [])
+            .filter(m => !pickedThisWeek.has(m.member_id))
+            .map(m => ({ member_id: m.member_id, week: thisWeek, display_name: m.name, not_submitted: true }))
+        : [];
+
+      if (!picks.length && !notSubmitted.length) {
         leaderboardWrap.innerHTML = "";
         historyWrap.innerHTML = '<div class="empty">No picks yet this season.</div>';
         return;
@@ -273,7 +297,7 @@
       `;
 
       const byWeek = new Map();
-      for (const p of picks) {
+      for (const p of [...picks, ...notSubmitted]) {
         if (!byWeek.has(p.week)) byWeek.set(p.week, []);
         byWeek.get(p.week).push(p);
       }
@@ -283,6 +307,17 @@
       historyWrap.innerHTML = weeks.map(week => {
         const weekPicks = byWeek.get(week).sort((a, b) => a.display_name.localeCompare(b.display_name));
         const rows = weekPicks.map(p => {
+          if (p.not_submitted) {
+            return `
+          <tr>
+            <td>${p.display_name}</td>
+            <td><span class="hidden-pick">No pick yet</span></td>
+            <td>&mdash;</td>
+            <td>&mdash;</td>
+            <td><span class="pill pending">Not submitted</span></td>
+          </tr>
+        `;
+          }
           const hidden = isHiddenPick(p, now);
           const pickCell = hidden
             ? '<span class="hidden-pick">Hidden until kickoff</span>'
