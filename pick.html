@@ -353,6 +353,9 @@
       box.textContent = "You already have a pick in for this week (hidden until kickoff). Picking a different team will replace it.";
     }
 
+    // Reset the team choice on every member switch - a team picked for one
+    // member shouldn't carry over and get silently submitted under another.
+    teamSelect.value = "";
     renderTeamOptions();
     onTeamChange();
   }
