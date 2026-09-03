@@ -346,8 +346,11 @@
       box.className = "existing-pick locked visible";
       box.textContent = `Your pick this week (${existing.team_name} vs ${existing.opponent_name}) has already started and can no longer be changed.`;
     } else {
+      // Don't name the team here - anyone can select any name from this
+      // dropdown, so revealing it pre-kickoff would defeat the point of
+      // hiding picks on picks.html/season.html until games start.
       box.className = "existing-pick info visible";
-      box.textContent = `You currently have ${existing.team_name} picked (vs ${existing.opponent_name}). Picking a different team will replace it.`;
+      box.textContent = "You already have a pick in for this week (hidden until kickoff). Picking a different team will replace it.";
     }
 
     renderTeamOptions();
