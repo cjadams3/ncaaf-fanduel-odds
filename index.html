@@ -65,6 +65,8 @@
     border: 1px solid var(--border);
     border-radius: 8px;
   }
+  .table-scroll + .week-heading { margin-top: 24px; }
+  .week-heading { margin: 0 0 8px; font-size: 0.9rem; font-weight: 600; color: var(--muted); }
   table {
     width: 100%;
     min-width: 320px;
@@ -310,6 +312,30 @@
     return !!(score?.completed && score.completed_at != null && now - score.completed_at >= RECENT_COMPLETION_SECONDS);
   }
 
+  function renderGamesTable(gamesList, scores, logoById) {
+    // Scoped to just this table's own games, so e.g. the active table can
+    // drop the Score column once nothing in it is live/finished, even if
+    // the history table below still has real scores to show.
+    const hasAnyScore = gamesList.some(g => {
+      const s = scores[g.event_id];
+      return s && s.state !== "pre" && s.home_score != null && s.away_score != null;
+    });
+    const rows = buildRows(gamesList, hasAnyScore, scores, logoById);
+    return `
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Matchup</th>
+              ${hasAnyScore ? '<th class="score-col">Score</th>' : ""}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
   function buildRows(gamesList, hasAnyScore, scores, logoById) {
     let lastDayKey = null;
     return gamesList.map(g => {
@@ -369,36 +395,16 @@
         return;
       }
 
-      // Only show the Score column once at least one game actually has
-      // live/final data - an all-empty column before any kickoff is just
-      // dead space.
-      const hasAnyScore = games.some(g => {
-        const s = scores[g.event_id];
-        return s && s.state !== "pre" && s.home_score != null && s.away_score != null;
-      });
-
       const now = Math.floor(Date.now() / 1000);
       const activeGames = games.filter(g => !isOldCompletion(scores[g.event_id], now));
       const historyGames = games.filter(g => isOldCompletion(scores[g.event_id], now));
 
-      const activeRows = buildRows(activeGames, hasAnyScore, scores, logoById);
-      const historyRows = historyGames.length
-        ? `<tr class="day-header"><td colspan="${hasAnyScore ? 2 : 1}">Earlier Results</td></tr>${buildRows(historyGames, hasAnyScore, scores, logoById)}`
+      const activeTable = activeGames.length ? renderGamesTable(activeGames, scores, logoById) : "";
+      const historyTable = historyGames.length
+        ? `<div class="week-heading">Earlier Results</div>${renderGamesTable(historyGames, scores, logoById)}`
         : "";
 
-      wrap.innerHTML = `
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Matchup</th>
-                ${hasAnyScore ? '<th class="score-col">Score</th>' : ""}
-              </tr>
-            </thead>
-            <tbody>${activeRows}${historyRows}</tbody>
-          </table>
-        </div>
-      `;
+      wrap.innerHTML = activeTable + historyTable;
     } catch (err) {
       statusEl.textContent = `Failed to load odds: ${err.message}`;
     }
