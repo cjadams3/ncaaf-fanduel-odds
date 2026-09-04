@@ -290,9 +290,13 @@
     const badge = score.completed
       ? `<span class="status-badge final">Final</span>`
       : `<span class="status-badge live">${score.detail || "Live"}</span>`;
+    // Possession isn't always known (right after kickoff, between drives),
+    // and is meaningless once the game's over.
+    const awayBall = !score.completed && score.possession === "away" ? ' <span title="Has the ball">&#127944;</span>' : "";
+    const homeBall = !score.completed && score.possession === "home" ? ' <span title="Has the ball">&#127944;</span>' : "";
     return `
-      <div class="score-row">${score.away_score}</div>
-      <div class="score-row">${score.home_score}</div>
+      <div class="score-row">${score.away_score}${awayBall}</div>
+      <div class="score-row">${score.home_score}${homeBall}</div>
       <div class="status-line">${badge}</div>
     `;
   }
