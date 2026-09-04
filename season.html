@@ -254,7 +254,7 @@
 
       const picks = (data.picks || []).map(p => ({ ...p, display_name: nameById.get(p.member_id) || p.member_id }));
 
-      statusEl.textContent = `${picks.length} pick${picks.length === 1 ? "" : "s"} across the season`;
+      statusEl.textContent = "";
 
       // Members with no pick row yet for the current week still get a row
       // (as opposed to a "No Pick" row the grader writes once the week is
