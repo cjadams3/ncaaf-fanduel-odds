@@ -159,10 +159,10 @@
   }
   .nav-toggle span { display: block; width: 16px; height: 2px; background: var(--text); border-radius: 1px; }
   .page-head { display: flex; flex-direction: column; }
-  @media (min-width: 601px) {
+  @media (min-width: 601px) and (min-height: 501px) {
     .page-head nav { order: 1; }
   }
-  @media (max-width: 600px) {
+  @media (max-width: 600px), (max-height: 500px) {
     nav { display: flex; justify-content: flex-start; position: relative; }
     .nav-toggle { display: flex; }
     .nav-links {
