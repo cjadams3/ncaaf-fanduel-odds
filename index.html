@@ -67,6 +67,7 @@
   }
   .table-scroll + .week-heading { margin-top: 24px; }
   .week-heading { margin: 0 0 8px; font-size: 0.9rem; font-weight: 600; color: var(--muted); }
+  .team-record { color: var(--muted); font-size: 0.85em; }
   table {
     width: 100%;
     min-width: 320px;
@@ -226,6 +227,7 @@
 
   const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
   const SCORES_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/scores.json";
+  const TEAM_INFO_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/team-info.json";
   const TEAMS_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/teams.json";
   const REFRESH_MS = 2 * 60 * 1000;
 
@@ -312,7 +314,7 @@
     return !!(score?.completed && score.completed_at != null && now - score.completed_at >= RECENT_COMPLETION_SECONDS);
   }
 
-  function renderGamesTable(gamesList, scores, logoById) {
+  function renderGamesTable(gamesList, scores, logoById, teamInfo) {
     // Scoped to just this table's own games, so e.g. the active table can
     // drop the Score column once nothing in it is live/finished, even if
     // the history table below still has real scores to show.
@@ -320,7 +322,7 @@
       const s = scores[g.event_id];
       return s && s.state !== "pre" && s.home_score != null && s.away_score != null;
     });
-    const rows = buildRows(gamesList, hasAnyScore, scores, logoById);
+    const rows = buildRows(gamesList, hasAnyScore, scores, logoById, teamInfo);
     return `
       <div class="table-scroll">
         <table>
@@ -336,12 +338,26 @@
     `;
   }
 
-  function buildRows(gamesList, hasAnyScore, scores, logoById) {
+  // "#4 " ahead of a ranked team's name, matching the AP/committee-poll
+  // convention everyone already recognizes from ESPN listings.
+  function rankPrefix(rank) {
+    return rank != null ? `#${rank} ` : "";
+  }
+
+  // Everyone starts 0-0, so the fetcher already omits a record until a team
+  // has actually played - render it as small muted text so it doesn't
+  // compete with the spread's parenthetical.
+  function recordSuffix(record) {
+    return record ? ` <span class="team-record">${record}</span>` : "";
+  }
+
+  function buildRows(gamesList, hasAnyScore, scores, logoById, teamInfo) {
     let lastDayKey = null;
     return gamesList.map(g => {
       const fav = favoriteSide(g);
-      const awayLabel = logoImg(logoById.get(g.away_team_id)) + g.away_team + (fav?.side === "away" ? ` (${fav.line})` : "");
-      const homeLabel = logoImg(logoById.get(g.home_team_id)) + g.home_team + (fav?.side === "home" ? ` (${fav.line})` : "");
+      const info = teamInfo[g.event_id];
+      const awayLabel = logoImg(logoById.get(g.away_team_id)) + rankPrefix(info?.away_rank) + g.away_team + recordSuffix(info?.away_record) + (fav?.side === "away" ? ` (${fav.line})` : "");
+      const homeLabel = logoImg(logoById.get(g.home_team_id)) + rankPrefix(info?.home_rank) + g.home_team + recordSuffix(info?.home_record) + (fav?.side === "home" ? ` (${fav.line})` : "");
       const pkLabel = fav?.side === "pk" ? " (PK)" : "";
       const covered = coveredSide(g, scores[g.event_id]);
 
@@ -370,10 +386,11 @@
     const statusEl = document.getElementById("status");
     const wrap = document.getElementById("tableWrap");
     try {
-      const [oddsRes, scoresRes, teamsRes] = await Promise.all([
+      const [oddsRes, scoresRes, teamsRes, teamInfoRes] = await Promise.all([
         fetch(DATA_URL, { cache: "no-store" }),
         fetch(SCORES_URL, { cache: "no-store" }).catch(() => null),
-        fetch(TEAMS_URL, { cache: "no-store" }).catch(() => null)
+        fetch(TEAMS_URL, { cache: "no-store" }).catch(() => null),
+        fetch(TEAM_INFO_URL, { cache: "no-store" }).catch(() => null)
       ]);
       if (!oddsRes.ok) throw new Error(`HTTP ${oddsRes.status}`);
       const data = await oddsRes.json();
@@ -382,6 +399,8 @@
       const scores = scoresData.scores || {};
       const teamsData = teamsRes && teamsRes.ok ? await teamsRes.json() : { teams: [] };
       const logoById = new Map((teamsData.teams || []).map(t => [t.id, t.logo]));
+      const teamInfoData = teamInfoRes && teamInfoRes.ok ? await teamInfoRes.json() : { teams: {} };
+      const teamInfo = teamInfoData.teams || {};
 
       const weekMatch = /^\d{4}-wk(\d{2})$/.exec(games[0]?.week || "");
       document.getElementById("pageTitle").textContent = weekMatch
@@ -399,9 +418,9 @@
       const activeGames = games.filter(g => !isOldCompletion(scores[g.event_id], now));
       const historyGames = games.filter(g => isOldCompletion(scores[g.event_id], now));
 
-      const activeTable = activeGames.length ? renderGamesTable(activeGames, scores, logoById) : "";
+      const activeTable = activeGames.length ? renderGamesTable(activeGames, scores, logoById, teamInfo) : "";
       const historyTable = historyGames.length
-        ? `<div class="week-heading">Earlier Results</div>${renderGamesTable(historyGames, scores, logoById)}`
+        ? `<div class="week-heading">Earlier Results</div>${renderGamesTable(historyGames, scores, logoById, teamInfo)}`
         : "";
 
       wrap.innerHTML = activeTable + historyTable;
