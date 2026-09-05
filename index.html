@@ -88,6 +88,7 @@
     width: 1%;
     white-space: nowrap;
     padding-right: 8px;
+    vertical-align: middle;
   }
   th {
     background: color-mix(in srgb, var(--card) 90%, var(--accent));
@@ -108,7 +109,8 @@
   .kickoff { color: var(--muted); font-size: 0.8rem; margin-top: 5px; }
   .odds-cell { font-variant-numeric: tabular-nums; }
   .score-row { font-weight: 600; font-variant-numeric: tabular-nums; }
-  .status-line { margin-top: 5px; }
+  .score-row + .score-row { margin-top: 2px; }
+  .status-line { margin-top: 3px; }
   .status-badge {
     display: inline-block;
     padding: 1px 6px;
@@ -298,15 +300,13 @@
     // and is meaningless once the game's over.
     const awayBall = !score.completed && score.possession === "away" ? ' <span title="Has the ball">&#127944;</span>' : "";
     const homeBall = !score.completed && score.possession === "home" ? ' <span title="Has the ball">&#127944;</span>' : "";
-    // The Matchup column now has a fixed 6-line rhythm (team, record, @,
-    // team, record, kickoff) - mirror it here with blank spacer lines so
-    // each score still lands beside the right team.
+    // Kept as a tight block (not spaced out to match the taller Matchup
+    // column) and vertically centered in the row instead - away-first
+    // order still ties it to the row above without needing exact
+    // line-by-line alignment.
     return `
       <div class="score-row">${score.away_score}${awayBall}</div>
-      <div class="team-record-row">&nbsp;</div>
-      <div class="at-row">&nbsp;</div>
       <div class="score-row">${score.home_score}${homeBall}</div>
-      <div class="team-record-row">&nbsp;</div>
       <div class="status-line">${badge}</div>
     `;
   }
