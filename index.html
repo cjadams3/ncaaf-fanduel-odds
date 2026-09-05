@@ -96,6 +96,7 @@
     white-space: nowrap;
   }
   tr:last-child td { border-bottom: none; }
+  .alt-row td { background: color-mix(in srgb, var(--card) 80%, var(--bg)); }
   .day-header td {
     background: color-mix(in srgb, var(--card) 80%, var(--accent));
     font-weight: 700;
@@ -360,7 +361,7 @@
 
   function buildRows(gamesList, hasAnyScore, scores, logoById, teamInfo) {
     let lastDayKey = null;
-    return gamesList.map(g => {
+    return gamesList.map((g, i) => {
       const fav = favoriteSide(g);
       const info = teamInfo[g.event_id];
       const awayLabel = logoImg(logoById.get(g.away_team_id)) + rankPrefix(info?.away_rank) + g.away_team + (fav?.side === "away" ? ` (${fav.line})` : "");
@@ -377,7 +378,7 @@
 
       return `
         ${header}
-        <tr>
+        <tr${i % 2 === 1 ? ' class="alt-row"' : ""}>
           <td>
             <div class="team-row${covered === "away" ? " covered" : ""}">${covered === "away" ? "&check; " : ""}${awayLabel}</div>
             ${recordRow(info?.away_record)}
