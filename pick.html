@@ -168,7 +168,7 @@
     <nav>
       <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
       <div class="nav-links" id="navLinks">
-        <div class="nav-group">
+        <div class="nav-group" data-sport="ncaaf">
           <button class="nav-group-toggle" type="button" aria-expanded="false">NCAAF</button>
           <div class="nav-group-links">
             <a href="index.html?sport=ncaaf">Odds Board</a>
@@ -178,7 +178,7 @@
             <a href="recap.html?sport=ncaaf">Weekly Recap</a>
           </div>
         </div>
-        <div class="nav-group">
+        <div class="nav-group" data-sport="nfl">
           <button class="nav-group-toggle" type="button" aria-expanded="false">NFL</button>
           <div class="nav-group-links">
             <a href="index.html?sport=nfl">Odds Board</a>
@@ -250,6 +250,15 @@
   const LEAGUE_LABEL = sport === "nfl" ? "NFL" : "NCAAF";
   document.title = `Make Your ${LEAGUE_LABEL} Pick`;
   document.getElementById("pageTitle").textContent = `Make Your ${LEAGUE_LABEL} Pick`;
+
+  // Whichever sport this page is actually showing is the one you're most
+  // likely navigating within next - expand its group by default so opening
+  // the menu doesn't take an extra tap just to get back to your own links.
+  const currentGroup = document.querySelector(`.nav-group[data-sport="${sport}"]`);
+  if (currentGroup) {
+    currentGroup.querySelector(".nav-group-links").classList.add("open");
+    currentGroup.querySelector(".nav-group-toggle").setAttribute("aria-expanded", "true");
+  }
 
   const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
   const DATA_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/fanduel/latest.json`;
