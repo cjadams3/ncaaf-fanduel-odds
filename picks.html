@@ -89,30 +89,25 @@
   }
   .nav-toggle span { display: block; width: 16px; height: 2px; background: var(--text); border-radius: 1px; }
   .page-head { display: flex; flex-direction: column; }
-  @media (min-width: 601px) and (min-height: 501px) {
-    .page-head nav { order: 1; }
+  nav { display: flex; justify-content: flex-start; position: relative; }
+  .nav-toggle { display: flex; }
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: 42px;
+    left: 0;
+    z-index: 20;
+    flex-direction: column;
+    gap: 2px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 0;
+    min-width: 190px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.18);
   }
-  @media (max-width: 600px), (max-height: 500px) {
-    nav { display: flex; justify-content: flex-start; position: relative; }
-    .nav-toggle { display: flex; }
-    .nav-links {
-      display: none;
-      position: absolute;
-      top: 42px;
-      left: 0;
-      z-index: 20;
-      flex-direction: column;
-      gap: 2px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 0;
-      min-width: 190px;
-      box-shadow: 0 6px 16px rgba(0,0,0,0.18);
-    }
-    .nav-links.open { display: flex; }
-    .nav-links a { margin-right: 0; padding: 10px 16px; }
-  }
+  .nav-links.open { display: flex; }
+  .nav-links a { margin-right: 0; padding: 10px 16px; }
   .nav-group-toggle {
     display: block;
     width: 100%;
