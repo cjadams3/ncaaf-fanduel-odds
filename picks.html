@@ -113,6 +113,22 @@
     .nav-links.open { display: flex; }
     .nav-links a { margin-right: 0; padding: 10px 16px; }
   }
+  .nav-group-toggle {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .nav-group-links { display: none; flex-direction: column; }
+  .nav-group-links.open { display: flex; }
+  .nav-group-links a { display: block; margin-right: 0; padding: 8px 16px 8px 28px; }
+  .nav-group + .nav-group { border-top: 1px solid var(--border); margin-top: 2px; padding-top: 2px; }
   @media (max-width: 480px) {
     body { padding: 16px 12px 48px; }
     th, td { padding: 8px 10px; font-size: 0.85rem; }
@@ -124,14 +140,30 @@
     <nav>
       <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
       <div class="nav-links" id="navLinks">
-        <a href="index.html">Odds Board</a>
-        <a href="pick.html">Make Your Pick</a>
-        <a href="season.html">Season Standings</a>
-        <a href="recap.html">Weekly Recap</a>
+        <div class="nav-group">
+          <button class="nav-group-toggle" type="button" aria-expanded="false">NCAAF</button>
+          <div class="nav-group-links">
+            <a href="index.html">Odds Board</a>
+            <a href="pick.html">Make Your Pick</a>
+            <a href="picks.html">This Week's Picks</a>
+            <a href="season.html">Season Standings</a>
+            <a href="recap.html">Weekly Recap</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <button class="nav-group-toggle" type="button" aria-expanded="false">NFL</button>
+          <div class="nav-group-links">
+            <a href="index.html?sport=nfl">Odds Board</a>
+            <a href="pick.html?sport=nfl">Make Your Pick</a>
+            <a href="picks.html?sport=nfl">This Week's Picks</a>
+            <a href="season.html?sport=nfl">Season Standings</a>
+            <a href="recap.html?sport=nfl">Weekly Recap</a>
+          </div>
+        </div>
       </div>
     </nav>
     <div class="title-block">
-      <h1>This Week's Picks</h1>
+      <h1 id="pageTitle">This Week's Picks</h1>
       <div class="subtitle" id="weekLabel"></div>
     </div>
   </div>
@@ -153,10 +185,29 @@
       navToggle.setAttribute("aria-expanded", "false");
     });
   }
+  for (const groupToggle of document.querySelectorAll(".nav-group-toggle")) {
+    groupToggle.addEventListener("click", () => {
+      const links = groupToggle.nextElementSibling;
+      const isOpen = links.classList.toggle("open");
+      groupToggle.setAttribute("aria-expanded", String(isOpen));
+    });
+  }
+
+  // ?sport= in the URL wins and is remembered for next time; absent that,
+  // fall back to whatever was last remembered; absent that, NCAAF.
+  const sportParam = new URLSearchParams(location.search).get("sport");
+  let sport = sportParam || "ncaaf";
+  try {
+    if (sportParam) localStorage.setItem("sport", sportParam);
+    else sport = localStorage.getItem("sport") || "ncaaf";
+  } catch {}
+  const LEAGUE_LABEL = sport === "nfl" ? "NFL" : "NCAAF";
+  document.title = `This Week's ${LEAGUE_LABEL} Picks`;
+  document.getElementById("pageTitle").textContent = `This Week's ${LEAGUE_LABEL} Picks`;
 
   const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
-  const DATA_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/fanduel/latest.json";
-  const TEAMS_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/teams.json";
+  const DATA_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/fanduel/latest.json`;
+  const TEAMS_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/teams.json`;
 
   function logoImg(logoUrl) {
     return logoUrl ? `<img class="team-logo" src="${logoUrl}" alt="" loading="lazy" />` : "";
@@ -222,8 +273,8 @@
       document.getElementById("weekLabel").textContent = formatWeekLabel(week);
 
       const [picksRes, membersRes, logoById] = await Promise.all([
-        fetch(`${API_BASE}/picks?week=${encodeURIComponent(week)}`, { cache: "no-store" }),
-        fetch(`${API_BASE}/members`, { cache: "no-store" }),
+        fetch(`${API_BASE}/picks?sport=${sport}&week=${encodeURIComponent(week)}`, { cache: "no-store" }),
+        fetch(`${API_BASE}/members?sport=${sport}`, { cache: "no-store" }),
         loadLogoMap()
       ]);
       if (!picksRes.ok) throw new Error(`HTTP ${picksRes.status}`);

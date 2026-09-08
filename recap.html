@@ -93,6 +93,22 @@
     .nav-links.open { display: flex; }
     .nav-links a { margin-right: 0; padding: 10px 16px; }
   }
+  .nav-group-toggle {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .nav-group-links { display: none; flex-direction: column; }
+  .nav-group-links.open { display: flex; }
+  .nav-group-links a { display: block; margin-right: 0; padding: 8px 16px 8px 28px; }
+  .nav-group + .nav-group { border-top: 1px solid var(--border); margin-top: 2px; padding-top: 2px; }
   @media (max-width: 480px) {
     body { padding: 16px 12px 48px; }
     .article { padding: 16px; }
@@ -104,14 +120,30 @@
     <nav>
       <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu" aria-expanded="false"><span></span><span></span><span></span></button>
       <div class="nav-links" id="navLinks">
-        <a href="index.html">Odds Board</a>
-        <a href="pick.html">Make Your Pick</a>
-        <a href="picks.html">This Week's Picks</a>
-        <a href="season.html">Season Standings</a>
+        <div class="nav-group">
+          <button class="nav-group-toggle" type="button" aria-expanded="false">NCAAF</button>
+          <div class="nav-group-links">
+            <a href="index.html">Odds Board</a>
+            <a href="pick.html">Make Your Pick</a>
+            <a href="picks.html">This Week's Picks</a>
+            <a href="season.html">Season Standings</a>
+            <a href="recap.html">Weekly Recap</a>
+          </div>
+        </div>
+        <div class="nav-group">
+          <button class="nav-group-toggle" type="button" aria-expanded="false">NFL</button>
+          <div class="nav-group-links">
+            <a href="index.html?sport=nfl">Odds Board</a>
+            <a href="pick.html?sport=nfl">Make Your Pick</a>
+            <a href="picks.html?sport=nfl">This Week's Picks</a>
+            <a href="season.html?sport=nfl">Season Standings</a>
+            <a href="recap.html?sport=nfl">Weekly Recap</a>
+          </div>
+        </div>
       </div>
     </nav>
     <div class="title-block">
-      <h1>Weekly Recap</h1>
+      <h1 id="pageTitle">Weekly Recap</h1>
       <div class="subtitle">Straight from the week's picks and box scores.</div>
     </div>
   </div>
@@ -133,8 +165,27 @@
       navToggle.setAttribute("aria-expanded", "false");
     });
   }
+  for (const groupToggle of document.querySelectorAll(".nav-group-toggle")) {
+    groupToggle.addEventListener("click", () => {
+      const links = groupToggle.nextElementSibling;
+      const isOpen = links.classList.toggle("open");
+      groupToggle.setAttribute("aria-expanded", String(isOpen));
+    });
+  }
 
-  const RECAP_URL = "https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/ncaaf/recap/latest.json";
+  // ?sport= in the URL wins and is remembered for next time; absent that,
+  // fall back to whatever was last remembered; absent that, NCAAF.
+  const sportParam = new URLSearchParams(location.search).get("sport");
+  let sport = sportParam || "ncaaf";
+  try {
+    if (sportParam) localStorage.setItem("sport", sportParam);
+    else sport = localStorage.getItem("sport") || "ncaaf";
+  } catch {}
+  const LEAGUE_LABEL = sport === "nfl" ? "NFL" : "NCAAF";
+  document.title = `${LEAGUE_LABEL} Weekly Recap`;
+  document.getElementById("pageTitle").textContent = `${LEAGUE_LABEL} Weekly Recap`;
+
+  const RECAP_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/recap/latest.json`;
 
   function formatWeekLabel(weekKey) {
     const m = /^(\d{4})-wk(\d{2})$/.exec(weekKey || "");
@@ -147,6 +198,15 @@
     const wrap = document.getElementById("wrap");
     try {
       const res = await fetch(RECAP_URL, { cache: "no-store" });
+      // A missing key returns 403 (not 404) when fetched anonymously - S3
+      // doesn't reveal object existence to an unauthorized caller, and this
+      // key genuinely isn't in the bucket's public-read policy at all for a
+      // sport with no recap generator yet.
+      if (res.status === 404 || res.status === 403) {
+        statusEl.textContent = "";
+        wrap.innerHTML = '<div class="empty">No recap yet - check back after this week\'s games wrap up.</div>';
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
