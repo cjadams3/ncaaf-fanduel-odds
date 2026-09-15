@@ -236,12 +236,17 @@
     }
   }
 
-  // Games are already sorted by kickoff time, so the earliest upcoming game's
-  // week is "this week" - avoids duplicating ESPN's week-boundary logic here.
+  // Games are already sorted by kickoff time, so the earliest upcoming
+  // game's week is "this week" - avoids duplicating ESPN's week-boundary
+  // logic here. Must actually filter for upcoming: latest.json can carry
+  // last week's finished games alongside this week's for a few hours after
+  // rollover, and games[0] unfiltered would still be one of those old ones.
   async function currentWeek() {
     const res = await fetch(DATA_URL, { cache: "no-store" });
     const data = await res.json();
-    return data.games?.[0]?.week || null;
+    const now = Math.floor(Date.now() / 1000);
+    const upcoming = (data.games || []).filter(g => g.start_time > now);
+    return upcoming[0]?.week || data.games?.[0]?.week || null;
   }
 
   function formatWeekLabel(weekKey) {

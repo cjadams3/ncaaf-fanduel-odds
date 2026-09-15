@@ -227,13 +227,18 @@
   const DATA_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/fanduel/latest.json`;
   const TEAMS_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/teams.json`;
 
-  // Games are already sorted by kickoff time, so the earliest upcoming game's
-  // week is "this week" - matches picks.html's own definition of current week.
+  // Games are already sorted by kickoff time, so the earliest upcoming
+  // game's week is "this week" - matches picks.html's own definition. Must
+  // actually filter for upcoming: latest.json can carry last week's
+  // finished games alongside this week's for a few hours after rollover,
+  // and games[0] unfiltered would still be one of those old ones.
   async function currentWeek() {
     try {
       const res = await fetch(DATA_URL, { cache: "no-store" });
       const data = await res.json();
-      return data.games?.[0]?.week || null;
+      const now = Math.floor(Date.now() / 1000);
+      const upcoming = (data.games || []).filter(g => g.start_time > now);
+      return upcoming[0]?.week || data.games?.[0]?.week || null;
     } catch {
       return null;
     }

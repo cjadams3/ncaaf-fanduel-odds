@@ -316,10 +316,15 @@
       const res = await fetch(DATA_URL, { cache: "no-store" });
       const data = await res.json();
       const now = Math.floor(Date.now() / 1000);
-      currentWeek = data.games?.[0]?.week || null;
       // Games that have already kicked off aren't pickable - the API enforces
       // this too, but filtering here avoids offering a choice that will fail.
       games = (data.games || []).filter(g => g.start_time > now);
+      // Derived from the already-filtered upcoming games, not the raw list -
+      // latest.json can carry last week's finished games alongside this
+      // week's for a few hours after rollover, and data.games[0] would still
+      // be one of those old ones (sorted earliest-first), locking the form
+      // against a stale "already started" pick that was never made this week.
+      currentWeek = games[0]?.week || null;
 
       for (const g of games) {
         if (g.home_team_id) teamToGame.set(g.home_team_id, { game: g, side: "home" });
