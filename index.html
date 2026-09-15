@@ -477,15 +477,12 @@
       const teamInfoData = teamInfoRes && teamInfoRes.ok ? await teamInfoRes.json() : { teams: {} };
       const teamInfo = teamInfoData.teams || {};
 
-      const weekMatch = /^\d{4}-wk(\d{2})$/.exec(games[0]?.week || "");
-      document.getElementById("pageTitle").textContent = weekMatch
-        ? `${LEAGUE_LABEL} Odds - Week ${Number(weekMatch[1])}`
-        : `${LEAGUE_LABEL} Odds`;
       document.title = `${LEAGUE_LABEL} FanDuel Odds`;
 
       statusEl.textContent = `${games.length} games · updated ${new Date(data.generated_at).toLocaleString()}`;
 
       if (!games.length) {
+        document.getElementById("pageTitle").textContent = `${LEAGUE_LABEL} Odds`;
         wrap.innerHTML = `<div class="empty">No upcoming ${LEAGUE_LABEL} games with FanDuel odds right now.</div>`;
         return;
       }
@@ -493,6 +490,17 @@
       const now = Math.floor(Date.now() / 1000);
       const activeGames = games.filter(g => !isOldCompletion(scores[g.event_id], now));
       const historyGames = games.filter(g => isOldCompletion(scores[g.event_id], now));
+
+      // The header should reflect whichever week is actually showing as
+      // "current" (the active table), not just whatever game happens to
+      // sort first overall - a stale-but-not-yet-rolled-over previous
+      // week's finished games would otherwise mislabel the header even
+      // while the active table is already showing the new week's games.
+      const headerWeekSource = activeGames[0] || games[0];
+      const weekMatch = /^\d{4}-wk(\d{2})$/.exec(headerWeekSource?.week || "");
+      document.getElementById("pageTitle").textContent = weekMatch
+        ? `${LEAGUE_LABEL} Odds - Week ${Number(weekMatch[1])}`
+        : `${LEAGUE_LABEL} Odds`;
 
       const activeTable = activeGames.length ? renderGamesTable(activeGames, scores, logoById, teamInfo) : "";
       const historyTable = historyGames.length
