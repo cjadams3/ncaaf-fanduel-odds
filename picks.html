@@ -221,6 +221,17 @@
   const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
   const DATA_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/fanduel/latest.json`;
   const TEAMS_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/teams.json`;
+  const SCORES_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/fanduel/scores.json`;
+
+  async function loadScores() {
+    try {
+      const res = await fetch(SCORES_URL, { cache: "no-store" });
+      const data = await res.json();
+      return data.scores || {};
+    } catch {
+      return {};
+    }
+  }
 
   function logoImg(logoUrl) {
     return logoUrl ? `<img class="team-logo" src="${logoUrl}" alt="" loading="lazy" />` : "";
@@ -260,12 +271,20 @@
     return price.line > 0 ? `+${price.line}` : `${price.line}`;
   }
 
-  function resultPill(pick) {
+  function resultPill(pick, liveScore) {
     const r = pick.result || "pending";
     const label = r === "pending" ? "Pending" : r.charAt(0).toUpperCase() + r.slice(1);
     let scoreText = "";
     if (r !== "pending" && pick.final_score_for != null) {
       scoreText = ` (${pick.final_score_for}-${pick.final_score_against})`;
+    } else if (r === "pending" && liveScore && liveScore.state !== "pre") {
+      const isHome = pick.home_away === "home";
+      const scoreFor = isHome ? liveScore.home_score : liveScore.away_score;
+      const scoreAgainst = isHome ? liveScore.away_score : liveScore.home_score;
+      if (scoreFor != null && scoreAgainst != null) {
+        const detail = liveScore.detail ? `, ${liveScore.detail}` : "";
+        scoreText = ` (${scoreFor}-${scoreAgainst}${detail})`;
+      }
     }
     return `<span class="pill ${r}">${label}${scoreText}</span>`;
   }
@@ -290,10 +309,11 @@
       }
       document.getElementById("weekLabel").textContent = formatWeekLabel(week);
 
-      const [picksRes, membersRes, logoById] = await Promise.all([
+      const [picksRes, membersRes, logoById, scoresById] = await Promise.all([
         fetch(`${API_BASE}/picks?sport=${sport}&week=${encodeURIComponent(week)}`, { cache: "no-store" }),
         fetch(`${API_BASE}/members?sport=${sport}`, { cache: "no-store" }),
-        loadLogoMap()
+        loadLogoMap(),
+        loadScores()
       ]);
       if (!picksRes.ok) throw new Error(`HTTP ${picksRes.status}`);
       const data = await picksRes.json();
@@ -345,7 +365,7 @@
           <td>${pickCell}</td>
           <td>${opponentCell}</td>
           <td>${spreadCell}</td>
-          <td>${resultPill(p)}</td>
+          <td>${resultPill(p, scoresById[p.event_id])}</td>
         </tr>
       `;
       }).join("");
