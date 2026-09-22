@@ -66,11 +66,31 @@
   th { background: color-mix(in srgb, var(--card) 90%, var(--accent)); font-weight: 600; white-space: nowrap; }
   tr:last-child td { border-bottom: none; }
   .team-logo { width: 18px; height: 18px; vertical-align: -3px; margin-right: 5px; object-fit: contain; border-radius: 3px; background: #fff; padding: 1px; }
-  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+  .pill { display: inline-block; padding: 2px 8px; border: 1px solid transparent; border-radius: 999px; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
   .pill.pending { background: color-mix(in srgb, var(--card) 85%, var(--muted)); color: var(--muted); }
   .pill.win { background: var(--win-bg); color: var(--win-text); }
   .pill.loss { background: var(--loss-bg); color: var(--loss-text); }
   .pill.push { background: color-mix(in srgb, var(--card) 85%, var(--accent)); color: var(--accent); }
+  /* Game in progress (or finished but not yet graded) - same win/loss/push
+     colors as a final result, but dashed to signal "not official yet". */
+  .pill.live-win { background: var(--win-bg); color: var(--win-text); border-color: var(--win-text); border-style: dashed; }
+  .pill.live-loss { background: var(--loss-bg); color: var(--loss-text); border-color: var(--loss-text); border-style: dashed; }
+  .pill.live-push { background: color-mix(in srgb, var(--card) 85%, var(--accent)); color: var(--accent); border-color: var(--accent); border-style: dashed; }
+  .pill.live-active::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 5px;
+    vertical-align: 1px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: live-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes live-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.25; }
+  }
   .empty { padding: 40px; text-align: center; color: var(--muted); }
   .hidden-pick { color: var(--muted); font-style: italic; }
   .nav-toggle {
@@ -271,22 +291,38 @@
     return price.line > 0 ? `+${price.line}` : `${price.line}`;
   }
 
+  // Same against-the-spread math the grader uses for a final result
+  // (scoreFor - scoreAgainst + line): positive means currently covering.
+  function coverClass(coverMargin) {
+    if (coverMargin > 0) return "live-win";
+    if (coverMargin < 0) return "live-loss";
+    return "live-push";
+  }
+
   function resultPill(pick, liveScore) {
     const r = pick.result || "pending";
-    const label = r === "pending" ? "Pending" : r.charAt(0).toUpperCase() + r.slice(1);
-    let scoreText = "";
-    if (r !== "pending" && pick.final_score_for != null) {
-      scoreText = ` (${pick.final_score_for}-${pick.final_score_against})`;
-    } else if (r === "pending" && liveScore && liveScore.state !== "pre") {
+    if (r !== "pending") {
+      const label = r.charAt(0).toUpperCase() + r.slice(1);
+      const scoreText = pick.final_score_for != null ? ` (${pick.final_score_for}-${pick.final_score_against})` : "";
+      return `<span class="pill ${r}">${label}${scoreText}</span>`;
+    }
+
+    // Not graded in our data yet - if the game has actually kicked off,
+    // show a live read on the score and whether the pick is covering.
+    if (liveScore && liveScore.state !== "pre") {
       const isHome = pick.home_away === "home";
       const scoreFor = isHome ? liveScore.home_score : liveScore.away_score;
       const scoreAgainst = isHome ? liveScore.away_score : liveScore.home_score;
       if (scoreFor != null && scoreAgainst != null) {
-        const detail = liveScore.detail ? `, ${liveScore.detail}` : "";
-        scoreText = ` (${scoreFor}-${scoreAgainst}${detail})`;
+        const line = pick.spread_at_pick?.line ?? 0;
+        const cls = coverClass((scoreFor - scoreAgainst) + line);
+        const isLive = liveScore.state === "in";
+        const label = isLive ? "Live" : "Pending";
+        const detail = isLive && liveScore.detail ? `, ${liveScore.detail}` : "";
+        return `<span class="pill ${cls}${isLive ? " live-active" : ""}">${label} (${scoreFor}-${scoreAgainst}${detail})</span>`;
       }
     }
-    return `<span class="pill ${r}">${label}${scoreText}</span>`;
+    return `<span class="pill pending">Pending</span>`;
   }
 
   // Picks stay hidden from the shared view until their game has actually
