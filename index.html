@@ -497,17 +497,37 @@
       // week's finished games would otherwise mislabel the header even
       // while the active table is already showing the new week's games.
       const headerWeekSource = activeGames[0] || games[0];
-      const weekMatch = /^\d{4}-wk(\d{2})$/.exec(headerWeekSource?.week || "");
+      const currentWeekKey = headerWeekSource?.week || null;
+      const weekMatch = /^\d{4}-wk(\d{2})$/.exec(currentWeekKey || "");
       document.getElementById("pageTitle").textContent = weekMatch
         ? `${LEAGUE_LABEL} Odds - Week ${Number(weekMatch[1])}`
         : `${LEAGUE_LABEL} Odds`;
 
-      const activeTable = activeGames.length ? renderGamesTable(activeGames, scores, logoById, teamInfo) : "";
+      // The feed looks ahead beyond the current week (e.g. a Thursday game
+      // posted a few days early) - split those out under their own week
+      // heading instead of letting them look like part of the current week.
+      const thisWeekGames = activeGames.filter(g => g.week === currentWeekKey);
+      const laterGames = activeGames.filter(g => g.week !== currentWeekKey);
+
+      const activeTable = thisWeekGames.length ? renderGamesTable(thisWeekGames, scores, logoById, teamInfo) : "";
+
+      let laterTable = "";
+      const laterByWeek = new Map();
+      for (const g of laterGames) {
+        if (!laterByWeek.has(g.week)) laterByWeek.set(g.week, []);
+        laterByWeek.get(g.week).push(g);
+      }
+      for (const [weekKey, list] of laterByWeek) {
+        const m = /^\d{4}-wk(\d{2})$/.exec(weekKey || "");
+        const heading = m ? `Week ${Number(m[1])}` : weekKey;
+        laterTable += `<div class="week-heading">${heading}</div>${renderGamesTable(list, scores, logoById, teamInfo)}`;
+      }
+
       const historyTable = historyGames.length
         ? `<div class="week-heading">Earlier Results</div>${renderGamesTable(historyGames, scores, logoById, teamInfo)}`
         : "";
 
-      wrap.innerHTML = activeTable + historyTable;
+      wrap.innerHTML = activeTable + laterTable + historyTable;
     } catch (err) {
       statusEl.textContent = `Failed to load odds: ${err.message}`;
     }
