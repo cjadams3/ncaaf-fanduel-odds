@@ -504,30 +504,17 @@
         : `${LEAGUE_LABEL} Odds`;
 
       // The feed looks ahead beyond the current week (e.g. a Thursday game
-      // posted a few days early) - split those out under their own week
-      // heading instead of letting them look like part of the current week.
+      // posted a few days early) - the board only shows the current week,
+      // so hold those back until the week actually rolls over.
       const thisWeekGames = activeGames.filter(g => g.week === currentWeekKey);
-      const laterGames = activeGames.filter(g => g.week !== currentWeekKey);
 
       const activeTable = thisWeekGames.length ? renderGamesTable(thisWeekGames, scores, logoById, teamInfo) : "";
-
-      let laterTable = "";
-      const laterByWeek = new Map();
-      for (const g of laterGames) {
-        if (!laterByWeek.has(g.week)) laterByWeek.set(g.week, []);
-        laterByWeek.get(g.week).push(g);
-      }
-      for (const [weekKey, list] of laterByWeek) {
-        const m = /^\d{4}-wk(\d{2})$/.exec(weekKey || "");
-        const heading = m ? `Week ${Number(m[1])}` : weekKey;
-        laterTable += `<div class="week-heading">${heading}</div>${renderGamesTable(list, scores, logoById, teamInfo)}`;
-      }
 
       const historyTable = historyGames.length
         ? `<div class="week-heading">Earlier Results</div>${renderGamesTable(historyGames, scores, logoById, teamInfo)}`
         : "";
 
-      wrap.innerHTML = activeTable + laterTable + historyTable;
+      wrap.innerHTML = activeTable + historyTable;
     } catch (err) {
       statusEl.textContent = `Failed to load odds: ${err.message}`;
     }
