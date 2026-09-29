@@ -226,19 +226,40 @@
   const API_BASE = "https://falbr3r26g.execute-api.us-east-1.amazonaws.com";
   const DATA_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/fanduel/latest.json`;
   const TEAMS_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/teams.json`;
+  const SCORES_URL = `https://familysportspool-odds-044528206038.s3.us-east-1.amazonaws.com/${sport}/fanduel/scores.json`;
 
-  // Games are already sorted by kickoff time, so the earliest upcoming
-  // game's week is "this week" - matches picks.html's own definition. Must
-  // actually filter for upcoming: latest.json can carry last week's
-  // finished games alongside this week's for a few hours after rollover,
-  // and games[0] unfiltered would still be one of those old ones.
+  async function loadScores() {
+    try {
+      const res = await fetch(SCORES_URL, { cache: "no-store" });
+      const data = await res.json();
+      return data.scores || {};
+    } catch {
+      return {};
+    }
+  }
+
+  // "Current week" is the earliest week that still has an ungraded game -
+  // NOT the earliest week with a not-yet-kicked-off game. A week's games
+  // all kicking off (e.g. everyone's locked in but Monday night is still
+  // being played) isn't the same as the week being over, and jumping to
+  // next week early would wrongly mark the whole roster "not submitted".
   async function currentWeek() {
     try {
-      const res = await fetch(DATA_URL, { cache: "no-store" });
-      const data = await res.json();
-      const now = Math.floor(Date.now() / 1000);
-      const upcoming = (data.games || []).filter(g => g.start_time > now);
-      return upcoming[0]?.week || data.games?.[0]?.week || null;
+      const [oddsRes, scores] = await Promise.all([
+        fetch(DATA_URL, { cache: "no-store" }),
+        loadScores()
+      ]);
+      const data = await oddsRes.json();
+      const games = [...(data.games || [])].sort((a, b) => a.start_time - b.start_time);
+      if (!games.length) return null;
+
+      const weeksInOrder = [...new Set(games.map(g => g.week))];
+      for (const week of weeksInOrder) {
+        const weekGames = games.filter(g => g.week === week);
+        const allGraded = weekGames.every(g => scores[g.event_id]?.completed === true);
+        if (!allGraded) return week;
+      }
+      return weeksInOrder[weeksInOrder.length - 1] || null;
     } catch {
       return null;
     }
